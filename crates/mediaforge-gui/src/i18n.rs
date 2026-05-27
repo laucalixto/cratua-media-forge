@@ -12,7 +12,7 @@ pub fn t(lang: Language, key: &str) -> String {
 
 fn t_en(key: &str) -> String {
     match key {
-        "app-title" => "MediaForge",
+        "app-title" => "Cratua Media Forge",
         "simple-mode" => "Simple Mode",
         "advanced-mode" => "Advanced Mode",
         "btn-add-files" => "Add Files...",
@@ -37,8 +37,8 @@ fn t_en(key: &str) -> String {
         "settings-language" => "Language",
         "settings-theme" => "Theme",
         "settings-ffmpeg-path" => "ffmpeg Path",
-        "about-title" => "About MediaForge",
-        "about-text" => "MediaForge v0.1.0\nA portable media converter powered by ffmpeg.\nBuilt with Rust + egui.",
+        "about-title" => "About Cratua Media Forge",
+        "about-text" => "Cratua Media Forge v0.1.0\nA portable media converter powered by ffmpeg.\nBuilt with Rust + egui.",
         // Advanced mode labels
         "tab-video" => "Video",
         "tab-audio" => "Audio",
@@ -83,7 +83,7 @@ fn t_en(key: &str) -> String {
 
 fn t_pt(key: &str) -> String {
     match key {
-        "app-title" => "MediaForge",
+        "app-title" => "Cratua Media Forge",
         "simple-mode" => "Modo Simples",
         "advanced-mode" => "Modo Avançado",
         "btn-add-files" => "Adicionar Arquivos...",
@@ -108,8 +108,8 @@ fn t_pt(key: &str) -> String {
         "settings-language" => "Idioma",
         "settings-theme" => "Tema",
         "settings-ffmpeg-path" => "Caminho do ffmpeg",
-        "about-title" => "Sobre o MediaForge",
-        "about-text" => "MediaForge v0.1.0\nUm conversor de mídia portátil com ffmpeg.\nFeito em Rust + egui.",
+        "about-title" => "Sobre o Cratua Media Forge",
+        "about-text" => "Cratua Media Forge v0.1.0\nUm conversor de mídia portátil com ffmpeg.\nFeito em Rust + egui.",
         // Advanced mode labels
         "tab-video" => "Vídeo",
         "tab-audio" => "Áudio",

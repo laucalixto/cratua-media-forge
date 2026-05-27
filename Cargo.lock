@@ -1806,6 +1806,7 @@ dependencies = [
  "eframe",
  "egui",
  "env_logger",
+ "image",
  "log",
  "mediaforge-core",
  "rfd",

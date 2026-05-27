@@ -6,6 +6,7 @@ use mediaforge_core::job::{Job, JobStatus, ProgressInfo};
 
 use crate::app::{JobEvent, MediaForgeApp};
 use crate::i18n;
+use crate::theme;
 
 impl MediaForgeApp {
     pub fn render_queue(&mut self, ui: &mut egui::Ui) {
@@ -118,24 +119,24 @@ impl MediaForgeApp {
                                         .text(format!("{in_name} — {pct:.0}%")),
                                 );
                             }
-                            JobStatus::Completed => {
-                                ui.label(format!("✓ {in_name} → {out_name}"));
-                                ui.with_layout(
-                                    egui::Layout::right_to_left(egui::Align::Center),
-                                    |ui| {
-                                        ui.colored_label(egui::Color32::GREEN, "done");
-                                    },
-                                );
-                            }
-                            JobStatus::Failed(err) => {
-                                ui.label(format!("✗ {in_name}"));
-                                ui.with_layout(
-                                    egui::Layout::right_to_left(egui::Align::Center),
-                                    |ui| {
-                                        ui.colored_label(egui::Color32::RED, err);
-                                    },
-                                );
-                            }
+    JobStatus::Completed => {
+        ui.label(format!("✓ {in_name} → {out_name}"));
+        ui.with_layout(
+            egui::Layout::right_to_left(egui::Align::Center),
+            |ui| {
+                ui.colored_label(theme::colors::SUCCESS, "done");
+            },
+        );
+    }
+    JobStatus::Failed(err) => {
+        ui.label(format!("✗ {in_name}"));
+        ui.with_layout(
+            egui::Layout::right_to_left(egui::Align::Center),
+            |ui| {
+                ui.colored_label(theme::colors::ERROR, err);
+            },
+        );
+    }
                             JobStatus::Cancelled => {
                                 ui.label(format!("⊘ {in_name}"));
                                 ui.with_layout(
