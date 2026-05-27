@@ -1,0 +1,20 @@
+[package]
+name = "mediaforge-gui"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "mediaforge"
+path = "src/main.rs"
+
+[dependencies]
+mediaforge-core = { path = "../mediaforge-core" }
+eframe = { version = "0.34", default-features = false, features = ["default_fonts", "glow", "x11"] }
+egui = "0.34"
+rfd = "0.15"
+serde.workspace = true
+uuid.workspace = true
+log.workspace = true
+env_logger.workspace = true
