@@ -79,9 +79,25 @@ pub struct MediaForgeApp {
     // Config
     pub config: Config,
     pub lang: mediaforge_core::i18n::Language,
+
+    // Splash screen
+    splash_start: std::time::Instant,
+    splash_image: Option<egui::ColorImage>,
+    splash_texture: Option<egui::TextureHandle>,
 }
 
 // ── Core methods (state, events, helpers) ──
+
+/// Decode the splash PNG at compile time into an egui ColorImage
+fn load_splash_image() -> Option<egui::ColorImage> {
+    let bytes = include_bytes!("../../../assets/splash.png");
+    let img = image::load_from_memory(bytes).ok()?.to_rgba8();
+    let (w, h) = img.dimensions();
+    Some(egui::ColorImage::from_rgba_unmultiplied(
+        [w as usize, h as usize],
+        &img.into_raw(),
+    ))
+}
 
 impl MediaForgeApp {
     pub fn new(config: Config) -> Self {
@@ -133,6 +149,9 @@ impl MediaForgeApp {
             overwrite_params: None,
             config,
             lang,
+            splash_start: std::time::Instant::now(),
+            splash_image: load_splash_image(),
+            splash_texture: None,
         }
     }
 
@@ -229,6 +248,56 @@ impl eframe::App for MediaForgeApp {
         self.drain_events();
 
         let ctx = ui.ctx().clone();
+
+        // ── Splash screen (first 2 seconds) ──
+        const SPLASH_DURATION: f32 = 2.0;
+        if self.splash_start.elapsed().as_secs_f32() < SPLASH_DURATION {
+            // Load splash texture on first frame
+            if let Some(img) = self.splash_image.take() {
+                self.splash_texture = Some(ctx.load_texture(
+                    "splash",
+                    img,
+                    egui::TextureOptions::default(),
+                ));
+            }
+
+            egui::CentralPanel::default().show_inside(ui, |ui| {
+                // Overlay: app name + version — top-right, white
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                    ui.add_space(10.0);
+                    ui.horizontal(|ui| {
+                        ui.label(
+                            egui::RichText::new("Cratua Media Forge")
+                                .size(12.0)
+                                .color(egui::Color32::WHITE),
+                        );
+                        ui.add_space(8.0);
+                        ui.label(
+                            egui::RichText::new(format!("v{}", env!("CARGO_PKG_VERSION")))
+                                .size(11.0)
+                                .color(egui::Color32::from_rgb(180, 180, 200)),
+                        );
+                    });
+                });
+
+                // Splash image centered at native size
+                if let Some(tex) = &self.splash_texture {
+                    let native_size = tex.size_vec2();
+                    ui.centered_and_justified(|ui| {
+                        ui.add_sized(
+                            native_size,
+                            egui::Image::from_texture(egui::load::SizedTexture::new(
+                                tex.id(),
+                                native_size,
+                            )),
+                        );
+                    });
+                }
+            });
+            ctx.request_repaint();
+            return;
+        }
+
         if self.is_encoding {
             ctx.request_repaint();
         }

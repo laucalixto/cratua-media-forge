@@ -1,0 +1,34 @@
+// Windows resource file — embeds icon in .exe
+// Compiled by windres in build.rs (cross-compilation from Linux)
+
+#include <winresrc.h>
+
+1 ICON "../../assets/icon.ico"
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION     0,1,0,0
+PRODUCTVERSION  0,1,0,0
+FILEFLAGSMASK   0x3fL
+FILEFLAGS       0x0L
+FILEOS          VOS_NT_WINDOWS32
+FILETYPE        VFT_APP
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904E4"
+        BEGIN
+            VALUE "CompanyName", "Cratua"
+            VALUE "FileDescription", "Cratua Media Forge"
+            VALUE "FileVersion", "0.1.0"
+            VALUE "InternalName", "mediaforge"
+            VALUE "LegalCopyright", "Cratua"
+            VALUE "OriginalFilename", "mediaforge.exe"
+            VALUE "ProductName", "Cratua Media Forge"
+            VALUE "ProductVersion", "0.1.0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1252
+    END
+END

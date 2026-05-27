@@ -28,3 +28,4 @@ vendor/ffmpeg/
 
 # Distribution packages
 dist/
+certs/

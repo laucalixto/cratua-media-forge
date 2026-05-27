@@ -1,17 +1,50 @@
-// build.rs — Copy bundled ffmpeg to target directory after native build.
-// Skipped during cross-compilation.
+// build.rs — Windows resource compilation + ffmpeg bundling for native builds.
 use std::path::Path;
+use std::process::Command;
 
 fn main() {
-    // Skip during cross-compilation (TARGET != HOST)
     let target = std::env::var("TARGET").unwrap_or_default();
     let host = std::env::var("HOST").unwrap_or_default();
+    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let project_root = manifest_dir.parent().unwrap_or(manifest_dir);
+
+    // ── Windows resource (.rc → .o) for .exe icon and version info ──
+    if target.contains("windows") || target.contains("mingw") {
+        let rc_path = manifest_dir.join("resource.rc");
+        if rc_path.exists() {
+            let out_dir = std::env::var("OUT_DIR").unwrap();
+            let obj_path = Path::new(&out_dir).join("resource.o");
+
+            let windres = if target.contains("windows") && host.contains("linux") {
+                "x86_64-w64-mingw32-windres"
+            } else {
+                "windres"
+            };
+
+            let status = Command::new(windres)
+                .current_dir(&manifest_dir)
+                .arg(&rc_path)
+                .arg(&obj_path)
+                .status();
+
+            match status {
+                Ok(s) if s.success() => {
+                    println!("cargo:rustc-link-arg={}", obj_path.display());
+                }
+                Ok(_) => {
+                    println!("cargo:warning=windres failed — .exe will have no icon");
+                }
+                Err(_) => {
+                    println!("cargo:warning=windres not found — .exe will have no icon");
+                }
+            }
+        }
+    }
+
+    // ── Copy bundled ffmpeg (native builds only, not cross-compilation) ──
     if target != host {
         return;
     }
-
-    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let project_root = manifest_dir.parent().unwrap_or(manifest_dir);
 
     #[cfg(target_os = "windows")]
     let ffmpeg_name = "ffmpeg.exe";
