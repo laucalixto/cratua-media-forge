@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cratua Media Forge</title>
+  <link rel="stylesheet" href="/bundle.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* Layout */
+    html, body { height: 100%; margin: 0; overflow: hidden; }
+    #app { height: 100%; }
+
+    /* Sidebar */
+    #sidebar { min-width: 200px; max-width: 260px; }
+
+    /* Tabs */
+    .tab-btn { padding: 6px 16px; border-radius: 6px 6px 0 0; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s; border: none; background: transparent; color: #9090a0; }
+    .tab-btn.active { background: #151520; color: #be4266; }
+    .tab-btn:hover:not(.active) { color: #c0c0d0; }
+
+    /* Form grid */
+    .form-grid { display: grid; grid-template-columns: 130px 1fr; gap: 8px 16px; align-items: center; font-size: 13px; }
+    .form-label { color: #9090a0; text-align: right; }
+    .form-input { background: #1f1f2e; border: 1px solid #2a2a3a; border-radius: 6px; padding: 5px 10px; color: #f4f4f6; font-size: 13px; outline: none; width: 100%; box-sizing: border-box; }
+    .form-input:focus { border-color: #be4266; }
+    select.form-input { cursor: pointer; }
+    input[type="range"] { accent-color: #be4266; }
+    input[type="checkbox"] { accent-color: #be4266; }
+
+    /* Collapsible */
+    .collapsible-header { display: flex; align-items: center; gap: 6px; padding: 8px 0; cursor: pointer; font-size: 13px; font-weight: 600; color: #c0c0d0; user-select: none; }
+    .collapsible-header:hover { color: #f4f4f6; }
+    .collapsible-header .arrow { transition: transform 0.2s; font-size: 10px; }
+    .collapsible-header.open .arrow { transform: rotate(90deg); }
+
+    /* HiDPI fix */
+    @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+      body { -webkit-font-smoothing: antialiased; }
+    }
+  </style>
+</head>
+<body class="bg-[#0b0b12] text-[#f4f4f6] font-sans" oncontextmenu="return false">
+  <!-- Splash -->
+  <div id="splash" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#0b0b12]">
+    <img src="/assets/splash.png" alt="Cratua" class="max-w-[600px] max-h-[350px] object-contain mb-6" />
+    <div class="absolute top-3 right-4 flex items-center gap-3">
+      <span class="text-sm font-medium text-white">Cratua Media Forge</span>
+      <span class="text-xs text-[#9090a0]">v0.1.0</span>
+    </div>
+  </div>
+
+  <!-- App Shell -->
+  <div id="app" class="hidden flex flex-col h-full">
+    <!-- Header -->
+    <header class="h-12 flex items-center justify-between px-4 bg-[#151520] border-b border-[#2a2a3a] shrink-0">
+      <span class="text-base font-semibold text-white tracking-tight">Cratua Media Forge</span>
+      <div class="flex items-center gap-1">
+        <button id="btn-simple" class="px-3 py-1.5 text-xs font-medium rounded-md bg-rose text-white">Simple</button>
+        <button id="btn-advanced" class="px-3 py-1.5 text-xs font-medium rounded-md text-[#9090a0] hover:text-white hover:bg-[#1f1f2e]">Advanced</button>
+        <button id="btn-about" class="ml-1 p-1.5 rounded-md text-[#9090a0] hover:text-white hover:bg-[#1f1f2e]" title="About">?</button>
+        <button id="btn-settings" class="p-1.5 rounded-md text-[#9090a0] hover:text-white hover:bg-[#1f1f2e]" title="Settings">⚙</button>
+      </div>
+    </header>
+
+    <!-- Body -->
+    <div class="flex flex-1 overflow-hidden">
+      <!-- Sidebar -->
+      <aside id="sidebar" class="bg-[#151520] border-r border-[#2a2a3a] flex flex-col shrink-0">
+        <div class="p-3 border-b border-[#2a2a3a]">
+          <h2 class="text-xs font-semibold text-[#9090a0] uppercase tracking-wider mb-2">Files</h2>
+          <button id="btn-add-files" class="w-full py-1.5 text-xs font-medium rounded-md border border-dashed border-[#2a2a3a] text-[#9090a0] hover:border-rose hover:text-rose transition-colors">+ Add Files</button>
+        </div>
+        <div class="px-3 py-1 border-b border-[#2a2a3a]">
+          <input id="path-input" type="text" placeholder="Paste file path..." class="w-full text-xs bg-[#1f1f2e] border border-[#2a2a3a] rounded-md px-2 py-1.5 text-[#9090a0] outline-none focus:border-rose" />
+        </div>
+        <div id="file-list" class="flex-1 overflow-y-auto p-2 space-y-0.5 text-xs" style="max-height: 45%"></div>
+        <div class="p-2 border-t border-[#2a2a3a]">
+          <button id="btn-clear-files" class="w-full py-1 text-xs text-[#606070] hover:text-[#ef4444] transition-colors">Clear All</button>
+        </div>
+        <!-- History -->
+        <div class="border-t border-[#2a2a3a] flex-1 overflow-y-auto">
+          <div class="flex items-center justify-between px-3 pt-3 pb-1">
+            <h2 class="text-xs font-semibold text-[#9090a0] uppercase tracking-wider">History</h2>
+            <button id="btn-clear-history" class="text-xs text-[#606070] hover:text-[#ef4444]">clear</button>
+          </div>
+          <div id="history-list" class="px-2 pb-2 space-y-0.5 text-xs"></div>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="flex-1 overflow-y-auto p-4">
+
+        <!-- ═══════════ SIMPLE MODE ═══════════ -->
+        <div id="mode-simple">
+          <div class="mb-4 flex items-center gap-3">
+            <label class="text-xs text-[#9090a0]">Preset</label>
+            <select id="preset-select" class="form-input w-56"></select>
+            <button id="btn-save-preset" class="px-2 py-1 text-xs rounded bg-[#1f1f2e] text-[#9090a0] hover:text-white hover:bg-[#2a2a3a]" title="Save current settings as preset">💾</button>
+            <button id="btn-delete-preset" class="px-2 py-1 text-xs rounded bg-[#1f1f2e] text-[#9090a0] hover:text-[#ef4444] hover:bg-[#2a2a3a]" title="Delete selected preset">🗑</button>
+          </div>
+
+          <div class="bg-[#151520] border border-[#2a2a3a] rounded-lg p-4 mb-4">
+            <h3 class="text-xs font-semibold text-rose uppercase tracking-wider mb-3">Video Settings</h3>
+            <div class="grid grid-cols-[110px_1fr] gap-x-3 gap-y-3 items-center text-sm">
+              <label class="text-[#9090a0] text-right">Resolution</label>
+              <div class="flex items-center gap-2">
+                <input type="number" id="s-width" value="1920" class="form-input w-20" />
+                <span class="text-[#606070]">×</span>
+                <input type="number" id="s-height" value="1080" class="form-input w-20" />
+              </div>
+              <label class="text-[#9090a0] text-right">Quality (CRF)</label>
+              <div class="flex items-center gap-2">
+                <input type="range" id="s-crf" min="0" max="51" value="19" class="flex-1" />
+                <input type="number" id="s-crf-num" min="0" max="51" value="19" class="w-12 text-xs text-center bg-[#1f1f2e] border border-[#2a2a3a] rounded px-1 py-0.5 text-[#f4f4f6] outline-none focus:border-rose" />
+                <span id="s-crf-val" class="text-xs text-white w-5 text-right">19</span>
+                <span class="text-xs text-[#606070]">0=lossless 51=worst</span>
+              </div>
+              <label class="text-[#9090a0] text-right">Audio Bitrate</label>
+              <div class="flex items-center gap-2">
+                <input type="range" id="s-audio" min="32" max="320" value="128" class="flex-1" />
+                <input type="number" id="s-audio-num" min="32" max="320" value="128" class="w-14 text-xs text-center bg-[#1f1f2e] border border-[#2a2a3a] rounded px-1 py-0.5 text-[#f4f4f6] outline-none focus:border-rose" />
+                <span id="s-audio-val" class="text-xs text-white w-16 text-right">128 kbps</span>
+              </div>
+              <label class="text-[#9090a0] text-right">Deinterlace</label>
+              <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="s-deint" /> yadif</label>
+            </div>
+          </div>
+
+          <div class="bg-[#151520] border border-[#2a2a3a] rounded-lg p-4">
+            <h3 class="text-xs font-semibold text-rose uppercase tracking-wider mb-3">Output</h3>
+            <div class="flex items-center gap-2">
+              <span id="output-dir" class="flex-1 text-sm text-[#9090a0] font-mono truncate">~</span>
+              <button id="btn-browse" class="px-3 py-1.5 text-xs font-medium rounded-md bg-[#1f1f2e] text-[#9090a0] hover:text-white hover:bg-[#2a2a3a] transition-colors">Browse</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══════════ ADVANCED MODE ═══════════ -->
+        <div id="mode-advanced" class="hidden">
+          <!-- Tab bar -->
+          <div class="flex border-b border-[#2a2a3a] mb-4">
+            <button class="tab-btn active" data-tab="video">Video</button>
+            <button class="tab-btn" data-tab="audio">Audio</button>
+            <button class="tab-btn" data-tab="filters">Filters</button>
+            <button class="tab-btn" data-tab="output">Output</button>
+            <button class="tab-btn" data-tab="metadata">Metadata</button>
+          </div>
+
+          <!-- TAB: Video -->
+          <div id="tab-video" class="tab-panel space-y-4">
+            <div class="bg-[#151520] border border-[#2a2a3a] rounded-lg p-4">
+              <div class="collapsible-header open"><span class="arrow">▶</span> Codec & Quality</div>
+              <div class="collapsible-body form-grid mt-2">
+                <label class="form-label">Video Codec</label>
+                <select id="a-vcodec" class="form-input">
+                  <option value="H264">H.264</option><option value="H265">H.265</option>
+                  <option value="VP9">VP9</option><option value="AV1">AV1</option>
+                  <option value="Copy">Copy</option>
+                </select>
+                <label class="form-label">CRF</label>
+                <div class="flex items-center gap-2">
+                  <input type="range" id="a-crf" min="0" max="51" value="23" class="flex-1" />
+                  <input type="number" id="a-crf-num" min="0" max="51" value="23" class="w-12 text-xs text-center bg-[#1f1f2e] border border-[#2a2a3a] rounded px-1 py-0.5 text-[#f4f4f6] outline-none focus:border-rose" />
+                  <span id="a-crf-val" class="text-xs text-white w-5 text-right">23</span>
+                  <button id="a-crf-auto" class="text-xs text-[#9090a0] hover:text-white px-2 py-0.5 rounded bg-[#1f1f2e]">Auto</button>
+                </div>
+                <label class="form-label">Video Bitrate</label>
+                <input type="number" id="a-vbitrate" value="0" class="form-input" placeholder="0=auto" />
+                <label class="form-label">Max Bitrate</label>
+                <input type="number" id="a-maxbr" value="0" class="form-input" placeholder="0=auto" />
+                <label class="form-label">Buffer Size</label>
+                <input type="number" id="a-bufsize" value="0" class="form-input" placeholder="0=auto" />
+                <label class="form-label">Speed</label>
+                <select id="a-preset-speed" class="form-input">
+                  <option>ultrafast</option><option>superfast</option><option>veryfast</option><option>faster</option>
+                  <option>fast</option><option selected>medium</option><option>slow</option><option>slower</option><option>veryslow</option>
+                </select>
+                <label class="form-label">Profile</label>
+                <select id="a-profile" class="form-input">
+                  <option value="">auto</option><option>baseline</option><option>main</option><option>high</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="bg-[#151520] border border-[#2a2a3a] rounded-lg p-4">
+              <div class="collapsible-header open"><span class="arrow">▶</span> Resolution & Framerate</div>
+              <div class="collapsible-body form-grid mt-2">
+                <label class="form-label">Resolution</label>
+                <div class="flex items-center gap-2">
+                  <input type="number" id="a-width" value="1920" class="form-input w-20" />
+                  <span class="text-[#606070]">×</span>
+                  <input type="number" id="a-height" value="1080" class="form-input w-20" />
+                </div>
+                <label class="form-label">Scale Algo</label>
+                <select id="a-scale" class="form-input">
+                  <option>Bilinear</option><option>Bicubic</option><option selected>Lanczos</option>
+                </select>
+                <label class="form-label">Frame Rate</label>
+                <div class="flex items-center gap-2">
+                  <select id="a-fps-mode" class="form-input w-32">
+                    <option value="same">Same as source</option><option value="fixed">Fixed</option>
+                  </select>
+                  <input type="number" id="a-fps-val" value="30" min="1" max="120" class="form-input w-16 hidden" />
+                </div>
+                <label class="form-label">Deinterlace</label>
+                <div class="flex items-center gap-2">
+                  <input type="checkbox" id="a-deint" />
+                  <select id="a-deint-method" class="form-input w-24">
+                    <option>yadif</option><option>bwdif</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-[#151520] border border-[#2a2a3a] rounded-lg p-4">
+              <div class="collapsible-header"><span class="arrow">▶</span> Pixel Format & Threads</div>
+              <div class="collapsible-body form-grid mt-2" style="display:none">
+                <label class="form-label">Pixel Format</label>
+                <select id="a-pixfmt" class="form-input">
+                  <option selected>yuv420p</option><option>yuv422p</option><option>yuv444p</option><option>rgb24</option>
+                </select>
+                <label class="form-label">Threads</label>
+                <input type="number" id="a-threads" value="0" min="0" max="32" class="form-input" />
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB: Audio -->
+          <div id="tab-audio" class="tab-panel hidden">
+            <div class="bg-[#151520] border border-[#2a2a3a] rounded-lg p-4">
+              <div class="form-grid">
+                <label class="form-label">Audio Codec</label>
+                <select id="a-acodec" class="form-input">
+                  <option selected>Aac</option><option>Mp3</option><option>Opus</option><option>Vorbis</option><option>Flac</option><option>Copy</option>
+                </select>
+                <label class="form-label">Bitrate</label>
+                <div class="flex items-center gap-2">
+                  <input type="range" id="a-abitrate" min="32" max="320" value="128" class="flex-1" />
+                  <input type="number" id="a-abitrate-num" min="32" max="320" value="128" class="w-14 text-xs text-center bg-[#1f1f2e] border border-[#2a2a3a] rounded px-1 py-0.5 text-[#f4f4f6] outline-none focus:border-rose" />
+                  <span id="a-abitrate-val" class="text-xs text-white w-16 text-right">128 kbps</span>
+                </div>
+                <label class="form-label">Channels</label>
+                <input type="number" id="a-channels" value="2" min="1" max="8" class="form-input" />
+                <label class="form-label">Sample Rate</label>
+                <select id="a-samplerate" class="form-input">
+                  <option>8000</option><option>11025</option><option>16000</option><option>22050</option><option selected>44100</option><option>48000</option><option>96000</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB: Filters -->
+          <div id="tab-filters" class="tab-panel hidden space-y-4">
+            <div class="bg-[#151520] border border-[#2a2a3a] rounded-lg p-4">
+              <h3 class="text-xs font-semibold text-[#9090a0] mb-2">Video Filters</h3>
+              <div id="vfilters-list" class="space-y-1 mb-3"></div>
+              <select id="vfilter-add" class="form-input w-44 text-xs">
+                <option value="">+ Add Video Filter</option>
+                <option value="HFlip">Flip Horizontal</option><option value="VFlip">Flip Vertical</option>
+                <option value="Rotate(90)">Rotate 90°</option><option value="Rotate(180)">Rotate 180°</option>
+                <option value="Denoise">Denoise (hqdn3d)</option><option value="Grayscale">Grayscale</option>
+              </select>
+            </div>
+            <div class="bg-[#151520] border border-[#2a2a3a] rounded-lg p-4">
+              <h3 class="text-xs font-semibold text-[#9090a0] mb-2">Audio Filters</h3>
+              <div id="afilters-list" class="space-y-1 mb-3"></div>
+              <select id="afilter-add" class="form-input w-44 text-xs">
+                <option value="">+ Add Audio Filter</option>
+                <option value="Volume(2.0)">Volume 2x</option><option value="Volume(0.5)">Volume 0.5x</option>
+                <option value="Loudnorm">Loudnorm (EBU R128)</option>
+              </select>
+            </div>
+            <div class="bg-[#151520] border border-[#2a2a3a] rounded-lg p-4">
+              <label class="text-xs font-semibold text-[#9090a0]">Extra ffmpeg Args</label>
+              <input type="text" id="a-extra-args" class="form-input mt-2" placeholder="-flags +global_header" />
+            </div>
+          </div>
+
+          <!-- TAB: Output -->
+          <div id="tab-output" class="tab-panel hidden space-y-4">
+            <div class="bg-[#151520] border border-[#2a2a3a] rounded-lg p-4">
+              <div class="form-grid">
+                <label class="form-label">Container</label>
+                <select id="a-container" class="form-input">
+                  <option selected>Mp4</option><option>Mkv</option><option>Webm</option><option>Mov</option><option>Avi</option><option>Gif</option>
+                </select>
+                <label class="form-label">Flags</label>
+                <div class="space-y-1">
+                  <label class="flex items-center gap-2 text-xs"><input type="checkbox" id="a-faststart" checked /> faststart (web optimize)</label>
+                  <label class="flex items-center gap-2 text-xs"><input type="checkbox" id="a-fragkf" /> frag_keyframe</label>
+                </div>
+              </div>
+            </div>
+            <div class="bg-[#151520] border border-[#2a2a3a] rounded-lg p-4">
+              <div class="collapsible-header"><span class="arrow">▶</span> Trim</div>
+              <div class="collapsible-body form-grid mt-2" style="display:none">
+                <label class="form-label">Start (-ss)</label>
+                <input type="text" id="a-trim-start" class="form-input" placeholder="e.g. 00:01:30 or 90" />
+                <label class="form-label">End (-to)</label>
+                <input type="text" id="a-trim-end" class="form-input" placeholder="e.g. 00:05:00 or 300" />
+              </div>
+            </div>
+            <div class="bg-[#151520] border border-[#2a2a3a] rounded-lg p-4">
+              <div class="collapsible-header"><span class="arrow">▶</span> Command Preview</div>
+              <div class="collapsible-body mt-2" style="display:none">
+                <textarea id="cmd-preview" readonly class="w-full h-20 bg-[#0b0b12] border border-[#2a2a3a] rounded-md p-3 text-xs font-mono text-[#9090a0] resize-none"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB: Metadata -->
+          <div id="tab-metadata" class="tab-panel hidden">
+            <div class="bg-[#151520] border border-[#2a2a3a] rounded-lg p-4">
+              <div id="metadata-list" class="space-y-1 mb-3 text-xs"></div>
+              <div class="flex items-center gap-2">
+                <input type="text" id="meta-key" class="form-input w-32" placeholder="Key" />
+                <input type="text" id="meta-val" class="form-input flex-1" placeholder="Value" />
+                <button id="meta-add" class="px-3 py-1 text-xs rounded-md bg-rose text-white">Add</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Queue Footer -->
+    <footer class="border-t border-[#2a2a3a] bg-[#151520] shrink-0">
+      <div class="flex items-center gap-3 px-4 py-2">
+        <span class="text-xs font-semibold text-[#9090a0] uppercase tracking-wider">Queue</span>
+        <button id="btn-add-queue" class="px-4 py-1.5 text-xs font-medium rounded-md bg-rose text-white hover:bg-rose-light transition-colors disabled:opacity-40 disabled:cursor-not-allowed">Add to Queue</button>
+        <button id="btn-start" class="px-4 py-1.5 text-xs font-medium rounded-md bg-[#22c55e] text-white hover:bg-green-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">Start Encoding</button>
+        <button id="btn-cancel" class="px-4 py-1.5 text-xs font-medium rounded-md bg-[#ef4444] text-white hover:bg-red-600 transition-colors hidden">Cancel</button>
+        <button id="btn-requeue" class="px-3 py-1.5 text-xs rounded-md bg-[#1f1f2e] text-[#9090a0] hover:text-white hover:bg-[#2a2a3a] ml-auto" title="Re-queue completed jobs">↺ Re-run</button>
+        <button id="btn-clear-queue" class="px-3 py-1.5 text-xs rounded-md bg-[#1f1f2e] text-[#606070] hover:text-[#ef4444] hover:bg-[#2a2a3a]" title="Clear finished jobs">Clear</button>
+      </div>
+      <div id="queue-list" class="max-h-36 overflow-y-auto px-4 pb-2 space-y-1"></div>
+    </footer>
+
+    <!-- Status Bar -->
+    <div class="h-7 flex items-center justify-between px-4 bg-[#0b0b12] border-t border-[#2a2a3a] text-xs text-[#606070] shrink-0">
+      <span id="status-text">Ready</span>
+      <span id="status-count">0 files | 0 jobs</span>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-black/50">
+    <div class="bg-[#151520] border border-[#2a2a3a] rounded-xl p-6 w-96 shadow-2xl">
+      <h2 class="text-lg font-semibold text-white mb-4">Settings</h2>
+      <div class="space-y-4 text-sm">
+        <div>
+          <label class="block text-[#9090a0] mb-1">ffmpeg Path</label>
+          <input type="text" id="ffmpeg-path" placeholder="Auto-detected" class="form-input" />
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 mt-6">
+        <button id="btn-settings-cancel" class="px-4 py-1.5 text-xs rounded-md bg-[#1f1f2e] text-[#9090a0] hover:text-white">Cancel</button>
+        <button id="btn-settings-save" class="px-4 py-1.5 text-xs rounded-md bg-rose text-white hover:bg-rose-light">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- About Modal -->
+  <div id="about-modal" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-black/50">
+    <div class="bg-[#151520] border border-[#2a2a3a] rounded-xl p-6 w-80 text-center shadow-2xl">
+      <h2 class="text-lg font-semibold text-white mb-2">Cratua Media Forge</h2>
+      <p class="text-sm text-[#9090a0]">v0.1.0</p>
+      <p class="text-xs text-[#606070] mt-3">Portable media converter powered by ffmpeg.<br/>Built with Rust + Tauri.</p>
+      <button id="btn-about-close" class="mt-4 px-4 py-1.5 text-xs rounded-md bg-rose text-white hover:bg-rose-light">OK</button>
+    </div>
+  </div>
+
+  <script src="/bundle.js"></script>
+</body>
+</html>

@@ -1,6 +1,9 @@
 use std::io::BufRead;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::time::Instant;
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
@@ -9,7 +12,7 @@ use crate::enums::DeinterlaceMethod;
 use crate::error::MediaForgeError;
 use crate::job::{EncodeParams, ProgressInfo};
 
-/// Detect ffmpeg binary: env var MEDIAFORGE_FFMPEG_PATH, then bundled, then PATH
+/// Detect ffprobe binary alongside ffmpeg
 pub fn detect_ffmpeg() -> Option<PathBuf> {
     // 1. Env var override
     if let Ok(path) = std::env::var("MEDIAFORGE_FFMPEG_PATH") {
@@ -265,6 +268,50 @@ pub fn parse_progress_output(stderr: impl BufRead) -> ProgressInfo {
     info
 }
 
+/// Probe input file duration in microseconds using ffprobe (bundled alongside ffmpeg).
+pub fn probe_duration(input: &Path, ffmpeg_path: Option<&Path>) -> Option<u64> {
+    // Find ffprobe: same directory as ffmpeg, or detect
+    let ffprobe = ffmpeg_path.map_or_else(
+        || {
+            detect_ffmpeg().map(|ff| {
+                let mut pb = ff;
+                pb.set_file_name(if cfg!(windows) { "ffprobe.exe" } else { "ffprobe" });
+                pb
+            })
+        },
+        |p| {
+            let mut pb = p.to_path_buf();
+            pb.set_file_name(if cfg!(windows) { "ffprobe.exe" } else { "ffprobe" });
+            Some(pb)
+        },
+    );
+
+    let ffprobe = ffprobe?;
+    if !ffprobe.exists() {
+        // Fallback: try PATH
+        let name = if cfg!(windows) { "ffprobe.exe" } else { "ffprobe" };
+        if which::which(name).is_err() {
+            return None;
+        }
+    }
+
+    let output = Command::new(&ffprobe)
+        .args([
+            "-v", "quiet",
+            "-show_entries", "format=duration",
+            "-of", "csv=p=0",
+        ])
+        .arg(input)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .output()
+        .ok()?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let secs: f64 = stdout.trim().parse().ok()?;
+    Some((secs * 1_000_000.0) as u64)
+}
+
 /// Run ffmpeg with progress reporting via callback
 pub fn run_with_progress<F>(
     params: &EncodeParams,
@@ -283,18 +330,44 @@ pub fn run_with_progress_and_ffmpeg<F>(
     input: &Path,
     output: &Path,
     ffmpeg_path: Option<&Path>,
-    mut on_progress: F,
+    on_progress: F,
 ) -> Result<(), MediaForgeError>
 where
     F: FnMut(&ProgressInfo),
 {
-    let mut cmd = build_command_with_ffmpeg(params, input, output, ffmpeg_path);
+    run_with_progress_and_ffmpeg_cancellable(params, input, output, ffmpeg_path, None, None, on_progress)
+        .map(|_| ())
+}
+
+/// Run ffmpeg with optional cancellation via Arc<AtomicBool>.
+/// When the flag is set to true, the child process is killed and Err(Cancelled) is returned.
+pub fn run_with_progress_and_ffmpeg_cancellable<F>(
+    params: &EncodeParams,
+    input: &Path,
+    output: &Path,
+    ffmpeg_path: Option<&Path>,
+    cancel_flag: Option<Arc<AtomicBool>>,
+    total_duration_us: Option<u64>,
+    mut on_progress: F,
+) -> Result<String, MediaForgeError>
+where
+    F: FnMut(&ProgressInfo),
+{
+    // Auto-detect ffmpeg if not explicitly provided
+    let resolved_path = match ffmpeg_path {
+        Some(p) => Some(p.to_path_buf()),
+        None => detect_ffmpeg(),
+    };
+    let resolved = resolved_path.as_deref();
+
+    let mut cmd = build_command_with_ffmpeg(params, input, output, resolved);
+    let cmd_str = command_to_string_with_ffmpeg(params, input, output, resolved);
     cmd.stderr(Stdio::piped());
     cmd.stdin(Stdio::null());
 
     let mut child = cmd
         .spawn()
-        .map_err(|e| MediaForgeError::FfmpegProcess(e.to_string()))?;
+        .map_err(|e| MediaForgeError::FfmpegProcess(format!("spawn failed: {e}")))?;
 
     let stderr = child
         .stderr
@@ -302,13 +375,33 @@ where
         .ok_or_else(|| MediaForgeError::FfmpegProcess("cannot capture stderr".into()))?;
 
     let reader = std::io::BufReader::new(stderr);
+    let mut stderr_lines: Vec<String> = Vec::new();
 
     for line in reader.lines() {
+        // Check cancellation
+        if let Some(ref flag) = cancel_flag {
+            if flag.load(Ordering::Relaxed) {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(MediaForgeError::Cancelled);
+            }
+        }
+
         let line = line.unwrap_or_default();
+        let line_clone = line.clone();
+        stderr_lines.push(line_clone);
+
         if let Some((key, value)) = parse_progress_line(&line) {
             let mut info = ProgressInfo::default();
             match key.as_str() {
-                "out_time_us" => info.out_time_us = value.parse().unwrap_or(0),
+                "out_time_us" => {
+                    info.out_time_us = value.parse().unwrap_or(0);
+                    if let Some(total) = total_duration_us {
+                        if total > 0 {
+                            info.progress_pct = (info.out_time_us as f64 / total as f64 * 100.0).min(99.9);
+                        }
+                    }
+                }
                 "speed" => {
                     if let Some(s) = value.strip_suffix('x') {
                         info.speed = s.parse().unwrap_or(0.0);
@@ -316,6 +409,11 @@ where
                 }
                 "fps" => info.fps = value.parse().unwrap_or(0.0),
                 "frame" => info.frame = value.parse().unwrap_or(0),
+                "progress" => {
+                    if value == "end" {
+                        info.progress_pct = 100.0;
+                    }
+                }
                 _ => {}
             }
             on_progress(&info);
@@ -327,11 +425,23 @@ where
         .map_err(|e| MediaForgeError::FfmpegProcess(e.to_string()))?;
 
     if !status.success() {
+        let stderr_tail: String = stderr_lines
+            .iter()
+            .rev()
+            .take(20)
+            .cloned()
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect::<Vec<_>>()
+            .join("\n");
         return Err(MediaForgeError::FfmpegProcess(format!(
-            "ffmpeg exited with code {}",
-            status.code().unwrap_or(-1)
+            "ffmpeg exited with code {}\nCommand: {}\nStderr (last 20 lines):\n{}",
+            status.code().unwrap_or(-1),
+            cmd_str,
+            stderr_tail,
         )));
     }
 
-    Ok(())
+    Ok(cmd_str)
 }

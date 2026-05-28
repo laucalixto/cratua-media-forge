@@ -1,45 +1,52 @@
 #!/usr/bin/env bash
-# Build MediaForge for Linux (release) with bundled ffmpeg
+# Build Cratua Media Forge for Linux (Tauri) — portable archive
 set -euo pipefail
-
 cd "$(dirname "$0")/.."
 
-# Download ffmpeg if not present
-if [ ! -f "vendor/ffmpeg/ffmpeg" ]; then
-    echo "=== Downloading ffmpeg ==="
-    bash scripts/download-ffmpeg.sh
-fi
+echo "=== Building Cratua Media Forge for Linux ==="
 
-echo "=== Building MediaForge for Linux ==="
-cargo build --release
+# 1. Build via Tauri CLI (compiles Rust + bundles .deb/.rpm)
+echo "[1/3] Building with Tauri..."
+cd crates/mediaforge-tauri
+cargo tauri build 2>&1 | grep -E "Finished|Bundling|Error|Built"
+cd ../..
 
-BIN="target/release/mediaforge"
-if [ -f "$BIN" ]; then
-    echo "Binary built: $BIN"
-    ls -lh "$BIN"
-    strip "$BIN" 2>/dev/null || true
-    ls -lh "$BIN"
-else
-    echo "ERROR: Binary not found!"
+BIN="target/release/mediaforge-tauri"
+if [ ! -f "$BIN" ]; then
+    echo "ERROR: Binary not found at $BIN"
     exit 1
 fi
+echo "  Binary: $(ls -lh "$BIN" | awk '{print $5}')"
 
-# Create dist directory
-DIST="dist/mediaforge-linux"
+# 2. Create portable dist
+echo "[2/3] Creating portable package..."
+DIST="dist/cratua-media-forge-linux"
 rm -rf "$DIST"
-mkdir -p "$DIST"
-
-cp "$BIN" "$DIST/mediaforge"
 mkdir -p "$DIST/ffmpeg"
-cp vendor/ffmpeg/ffmpeg "$DIST/ffmpeg/ffmpeg"
-cp README.md "$DIST/" 2>/dev/null || echo "# MediaForge" > "$DIST/README.md"
+cp "$BIN" "$DIST/cratua-media-forge"
+cp vendor/ffmpeg/ffmpeg "$DIST/ffmpeg/"
+
+cat > "$DIST/README.txt" << 'EOF'
+Cratua Media Forge — Portable Media Converter
+===============================================
+
+Run:
+  ./cratua-media-forge
+
+For HiDPI monitors:
+  GDK_DPI_SCALE=2 ./cratua-media-forge
+
+ffmpeg is bundled — no installation needed.
+EOF
+
+# 3. Create archive
+echo "[3/3] Creating archive..."
+cd dist
+tar czf "cratua-media-forge-v0.1.0-linux-x86_64.tar.gz" cratua-media-forge-linux
+cd ..
 
 echo ""
 echo "=== Build complete ==="
-echo "Dist: $DIST/"
-ls -lh "$DIST/"
-echo ""
-echo "Run: WINIT_X11_SCALE_FACTOR=2 $DIST/mediaforge  # for HiDPI"
-echo ""
-echo "To create AppImage (requires appimagetool):"
-echo "  See scripts/build-appimage.sh"
+echo "  Portable: $(ls -lh dist/cratua-media-forge-v0.1.0-linux-x86_64.tar.gz | awk '{print $5}')"
+echo "  Deb:      $(ls -lh target/release/bundle/deb/*.deb 2>/dev/null | awk '{print $5}')"
+echo "  RPM:      $(ls -lh target/release/bundle/rpm/*.rpm 2>/dev/null | awk '{print $5}')"

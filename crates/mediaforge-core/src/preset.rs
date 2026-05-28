@@ -9,9 +9,9 @@ pub fn builtin_presets() -> Vec<Preset> {
     vec![
         // ── Legacy: exact replica of the original .bat ──
         Preset {
-            id: "legacy-bat".into(),
-            name: "Legacy (RenderConverter .bat)".into(),
-            description: "Exact replica of the original RenderConverter FFMPEG script: H.264, yadif deinterlace, faststart, CRF 19, 128k audio".into(),
+            id: "default".into(),
+            name: "Padrão (H.264 CRF 19)".into(),
+            description: "Configuração padrão: H.264, yadif deinterlace, faststart, CRF 19, 128k audio".into(),
             category: PresetCategory::Video,
             params: EncodeParams {
                 video_codec: VideoCodec::H264,
