@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+@theme {
+  --color-rose: #be4266;
+  --color-rose-light: #d46484;
+  --color-rose-dark: #9e2e50;
+}
+
+/* Base */
+body {
+  font-family: 'Inter', sans-serif;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #2a2a3a;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3a3a4a;
+}
+
+/* Range input styling */
+input[type="range"] {
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: #2a2a3a;
+  border-radius: 2px;
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  background: #be4266;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+input[type="range"]::-webkit-slider-thumb:hover {
+  background: #d46484;
+}
+
+/* Number input */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  opacity: 0.5;
+}
+
+/* Progress bar */
+.progress-bar {
+  height: 6px;
+  background: #2a2a3a;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #be4266, #d46484);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+/* File card */
+.file-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: default;
+  transition: background 0.15s;
+}
+.file-card:hover {
+  background: #1f1f2e;
+}
+.file-card .remove-btn {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.file-card:hover .remove-btn {
+  opacity: 1;
+}
