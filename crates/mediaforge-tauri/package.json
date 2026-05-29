@@ -1,7 +1,7 @@
 {
   "name": "mediaforge-tauri",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "scripts": {
     "dev": "esbuild ui/src/main.js --bundle --outfile=ui/bundle.js --servedir=ui --serve=localhost:1420",
     "build": "esbuild ui/src/main.js --bundle --minify --outfile=ui/bundle.js"
