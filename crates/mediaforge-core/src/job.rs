@@ -68,7 +68,7 @@ impl Default for EncodeParams {
             audio_codec: AudioCodec::Aac,
             audio_bitrate: 128,
             audio_channels: 2,
-            sample_rate: 44100,
+            sample_rate: 48000,
             audio_filters: vec![],
             container: Container::Mp4,
             movflags: vec![MovFlag::FastStart],
@@ -195,7 +195,7 @@ mod tests {
         assert_eq!(p.crf, Some(19));
         assert_eq!(p.audio_bitrate, 128);
         assert_eq!(p.audio_channels, 2);
-        assert_eq!(p.sample_rate, 44100);
+        assert_eq!(p.sample_rate, 48000);
         assert_eq!(p.threads, 0);
         assert!(p.video_bitrate.is_none());
         assert!(p.profile.is_none());

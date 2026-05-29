@@ -64,12 +64,6 @@ pub fn build_command_with_ffmpeg(
         .arg("-i")
         .arg(input);
 
-    // Suppress console window on Windows (child ffmpeg process)
-    #[cfg(target_os = "windows")]
-    {
-        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
-    }
-
     // ── GIF: special handling (no video codec, palette filter, no audio) ──
     if params.container == crate::enums::Container::Gif {
         let fps = match params.fps {
@@ -334,13 +328,15 @@ pub fn probe_duration(input: &Path, ffmpeg_path: Option<&Path>) -> Option<u64> {
         }
     }
 
-    let output = Command::new(&ffprobe)
-        .args([
+    let mut cmd = Command::new(&ffprobe);
+    cmd.args([
             "-v", "quiet",
             "-show_entries", "format=duration",
             "-of", "csv=p=0",
         ])
-        .arg(input)
+        .arg(input);
+
+    let output = cmd
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .output()
@@ -432,6 +428,7 @@ where
 
         if let Some((key, value)) = parse_progress_line(&line) {
             let mut info = ProgressInfo::default();
+            let mut should_emit = true;
             match key.as_str() {
                 "out_time_us" => {
                     info.out_time_us = value.parse().unwrap_or(0);
@@ -441,21 +438,21 @@ where
                         }
                     }
                 }
-                "speed" => {
-                    if let Some(s) = value.strip_suffix('x') {
-                        info.speed = s.parse().unwrap_or(0.0);
-                    }
-                }
-                "fps" => info.fps = value.parse().unwrap_or(0.0),
-                "frame" => info.frame = value.parse().unwrap_or(0),
                 "progress" => {
                     if value == "end" {
                         info.progress_pct = 100.0;
+                    } else {
+                        should_emit = false; // progress=continue — don't emit
                     }
                 }
-                _ => {}
+                // Only emit for out_time_us and progress=end — all other keys
+                // (speed, fps, frame, bitrate, total_size) carry progress_pct=0.0
+                // which would overwrite the real value in the frontend.
+                _ => should_emit = false,
             }
-            on_progress(&info);
+            if should_emit {
+                on_progress(&info);
+            }
         }
     }
 
@@ -679,4 +676,123 @@ mod tests {
     fn webm_vp9_uses_deadline() { let p = EncodeParams { video_codec: VideoCodec::VP9, container: Container::Webm, ..Default::default() }; let s = cmd_str(&p); assert!(s.contains("-deadline good")); assert!(s.contains("-cpu-used")); assert!(!s.contains("-preset ")); }
     #[test]
     fn webm_no_profile() { let p = EncodeParams { video_codec: VideoCodec::VP9, profile: Some(Profile::High), container: Container::Webm, ..Default::default() }; assert!(!cmd_str(&p).contains("-profile:v")); }
+
+    // ── TDD: progress event filtering ──
+    // RED: This test documents the expected behavior — only out_time_us and
+    // progress=end should trigger callbacks. Lines like speed/fps/frame/bitrate
+    // must NOT overwrite the progress_pct in the frontend.
+
+    /// Simulates the stderr-reading loop from run_with_progress_and_ffmpeg_cancellable.
+    /// Returns (call_count, progress_pct_values_received).
+    fn simulate_progress_events(lines: &[&str], total_duration_us: Option<u64>) -> (usize, Vec<f64>) {
+        let mut call_count = 0;
+        let mut pct_values: Vec<f64> = Vec::new();
+        let mut on_progress = |info: &ProgressInfo| {
+            call_count += 1;
+            pct_values.push(info.progress_pct);
+        };
+        for &line in lines {
+            if let Some((key, value)) = parse_progress_line(line) {
+                let mut info = ProgressInfo::default();
+                let mut should_emit = true;
+                match key.as_str() {
+                    "out_time_us" => {
+                        info.out_time_us = value.parse().unwrap_or(0);
+                        if let Some(total) = total_duration_us {
+                            if total > 0 {
+                                info.progress_pct = (info.out_time_us as f64 / total as f64 * 100.0).min(99.9);
+                            }
+                        }
+                    }
+                    "progress" => {
+                        if value == "end" {
+                            info.progress_pct = 100.0;
+                        } else {
+                            should_emit = false;
+                        }
+                    }
+                    _ => should_emit = false,
+                }
+                if should_emit {
+                    on_progress(&info);
+                }
+            }
+        }
+        (call_count, pct_values)
+    }
+
+    #[test]
+    fn progress_filter_only_emits_out_time_and_end() {
+        // Simulate a 10-second video (10_000_000 us)
+        let total_us = Some(10_000_000u64);
+        let lines = [
+            "frame=0",
+            "fps=0.0",
+            "out_time_us=0",
+            "speed=0.0x",
+            "frame=100",
+            "fps=30.0",
+            "out_time_us=2500000",     // 25%
+            "speed=3.5x",
+            "frame=200",
+            "bitrate=1200.5kbits/s",
+            "out_time_us=5000000",     // 50%
+            "total_size=500000",
+            "frame=300",
+            "out_time_us=7500000",     // 75%
+            "speed=2.0x",
+            "progress=continue",
+            "out_time_us=9990000",     // 99.9% (capped)
+            "progress=end",            // 100%
+        ];
+        let (count, pcts) = simulate_progress_events(&lines, total_us);
+
+        // ── Assertions ──
+        // Only out_time_us and progress=end lines should trigger callbacks
+        assert_eq!(count, 6, "expected 6 callbacks (5 out_time_us + 1 progress=end)");
+
+        // Verify the progression: 0% → 25% → 50% → 75% → 99.9% → 100%
+        assert_eq!(pcts[0], 0.0,  "first: 0%");
+        assert_eq!(pcts[1], 25.0, "second: 25%");
+        assert_eq!(pcts[2], 50.0, "third: 50%");
+        assert_eq!(pcts[3], 75.0, "fourth: 75%");
+        assert_eq!(pcts[4], 99.9, "fifth: ~99.9% (capped)");
+        assert_eq!(pcts[5], 100.0, "sixth: 100% (end)");
+    }
+
+    #[test]
+    fn progress_filter_no_zero_overwrite_from_frame_lines() {
+        // frame/speed/fps/bitrate lines must NOT emit — they carry progress_pct=0
+        let total_us = Some(10_000_000u64);
+        let lines = [
+            "out_time_us=5000000",   // 50% — emitted
+            "frame=123",             // NOT emitted
+            "fps=25.0",              // NOT emitted
+            "speed=2.5x",            // NOT emitted
+            "bitrate=1200k",         // NOT emitted
+            "total_size=99999",      // NOT emitted
+            "out_time_us=8000000",   // 80% — emitted
+            "progress=end",          // 100% — emitted
+        ];
+        let (count, pcts) = simulate_progress_events(&lines, total_us);
+
+        assert_eq!(count, 3, "only 3 callbacks: 2 out_time_us + 1 progress=end");
+        assert_eq!(pcts, vec![50.0, 80.0, 100.0], "no zero-overwrites from frame/speed/fps lines");
+    }
+
+    #[test]
+    fn progress_filter_no_duration_still_emits_end() {
+        // Without probe duration, progress_pct stays 0.0 but progress=end still fires
+        let lines = [
+            "out_time_us=1000000",
+            "out_time_us=5000000",
+            "progress=end",
+        ];
+        let (count, pcts) = simulate_progress_events(&lines, None);
+        assert_eq!(count, 3);
+        // No total_duration → progress_pct stays 0.0 until progress=end
+        assert_eq!(pcts[0], 0.0);
+        assert_eq!(pcts[1], 0.0);
+        assert_eq!(pcts[2], 100.0);
+    }
 }
