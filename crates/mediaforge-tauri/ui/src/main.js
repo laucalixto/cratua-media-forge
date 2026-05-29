@@ -37,7 +37,7 @@ $$('.tab-btn').forEach(b=>on(b,'click',()=>{$$('.tab-btn').forEach(x=>x.classLis
 if(b.dataset.tab==='output')updateCmdPreview()}));
 
 // ── Collapsible (▶/▼ toggle) ──
-$$('.collapsible-header').forEach(h=>{const arrow=h.querySelector('.arrow');on(h,'click',()=>{h.classList.toggle('open');const body=h.nextElementSibling;const isOpen=body.style.display!=='none';body.style.display=isOpen?'none':'';if(arrow)arrow.textContent=isOpen?'▶':'▼'})});
+$$('.collapsible-header').forEach(h=>{const arrow=h.querySelector('.arrow');const body=h.nextElementSibling;const isOpen=h.classList.contains('open');if(arrow)arrow.textContent=isOpen?'▼':'▶';on(h,'click',()=>{h.classList.toggle('open');const open=body.style.display!=='none';body.style.display=open?'none':'';if(arrow)arrow.textContent=open?'▶':'▼'})});
 
 // ── FPS ──
 on($('#a-fps-mode'),'change',e=>{$('#a-fps-val').classList.toggle('hidden',e.target.value!=='fixed')});
@@ -80,7 +80,15 @@ async function updateCmdPreview(){try{const p=S.mode==='simple'?collectSimplePar
 function addFiles(paths){if(!paths||!paths.length)return;const np=paths.map(normPath).filter(p=>!S.files.includes(p));if(np.length)S.files.push(...np);renderFiles();updateStatus()}
 function renderFiles(){const l=$('#file-list');if(!S.files.length){l.innerHTML='<div class="text-[#606070] text-xs p-2 text-center">Drop files or click + Add Files</div>'}else{l.innerHTML=S.files.map((f,i)=>`<div class="flex items-center justify-between text-xs py-1 px-2 rounded hover:bg-[#1f1f2e]"><span class="truncate text-[#c0c0d0]" title="${f}">${f.split('/').pop()}</span><button data-fidx="${i}" class="text-[#606070] hover:text-[#ef4444]">✕</button></div>`).join('');l.querySelectorAll('button').forEach(b=>on(b,'click',()=>{S.files.splice(parseInt(b.dataset.fidx),1);renderFiles();updateStatus()}))}}
 on($('#btn-add-files'),'click',async()=>{try{const sel=await dialogOpen({multiple:true,filters:[{name:'Media',extensions:['mp4','mkv','mov','avi','webm','mp3','wav','flac','m4a','ogg']}]});if(sel)addFiles(Array.isArray(sel)?sel:[sel])}catch(e){diag('Dialog error: '+e)}});
-on($('#btn-browse'),'click',async()=>{try{const sel=await dialogOpen({directory:true,multiple:false,title:'Select Output Folder'});if(sel){S.outputDir=normPath(typeof sel==='string'?sel:sel[0]);$('#output-dir').textContent=S.outputDir;if(S.config){S.config.output_dir=S.outputDir;invoke('save_config',{config:S.config}).catch(()=>{})}}}catch(e){diag('Browse error: '+e)}});
+on($('#btn-browse'),'click',async()=>{try{const sel=await dialogOpen({directory:true,multiple:false,title:'Select Output Folder'});if(sel){S.outputDir=normPath(typeof sel==='string'?sel:sel[0]);updateOutputDisplay();if(S.config){S.config.output_dir=S.outputDir;invoke('save_config',{config:S.config}).catch(()=>{})}}}catch(e){diag('Browse error: '+e)}});
+// Advanced browse
+on($('#a-btn-browse'),'click',async()=>{try{const sel=await dialogOpen({directory:true,multiple:false,title:'Select Output Folder'});if(sel){S.outputDir=normPath(typeof sel==='string'?sel:sel[0]);updateOutputDisplay();if(S.config){S.config.output_dir=S.outputDir;invoke('save_config',{config:S.config}).catch(()=>{})}}}catch(e){diag('Browse error: '+e)}});
+
+function updateOutputDisplay(){
+  const d=S.outputDir||'~';
+  const el=$('#output-dir');if(el)el.textContent=d;
+  const ael=$('#a-output-dir');if(ael)ael.textContent=d;
+}
 on($('#path-input'),'keydown',e=>{if(e.key==='Enter'){addFiles([e.target.value.trim()]);e.target.value=''}});
 on($('#btn-clear-files'),'click',()=>{S.files=[];renderFiles();updateStatus()});
 
@@ -153,5 +161,5 @@ function renderHistory(){const l=$('#history-list');if(!l)return;if(!S.history.l
 on($('#btn-clear-history'),'click',async()=>{await invoke('clear_history');S.history=[];renderHistory()});
 
 // ── Init ──
-async function init(){const d=[];d.push('TI:'+(!!window.__TAURI_INTERNALS__));try{S.presets=await invoke('get_presets');d.push('pre:'+S.presets.length);S.config=await invoke('get_config');S.outputDir=S.config?.output_dir||await invoke('get_default_output_dir');$('#output-dir').textContent=S.outputDir;await setupEvents();await setupDragDrop();await loadHistory();d.push('READY')}catch(e){d.push('ERR:'+String(e).substring(0,60));S.outputDir='output';$('#output-dir').textContent=S.outputDir}diag(d.join(' | '));const sel=$('#preset-select');sel.innerHTML=S.presets.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');updateProfileOptions();renderFilters();renderMetadata();renderFiles();updateCrfWarning()}
+async function init(){const d=[];d.push('TI:'+(!!window.__TAURI_INTERNALS__));try{S.presets=await invoke('get_presets');d.push('pre:'+S.presets.length);S.config=await invoke('get_config');S.outputDir=S.config?.output_dir||await invoke('get_default_output_dir');updateOutputDisplay();await setupEvents();await setupDragDrop();await loadHistory();d.push('READY')}catch(e){d.push('ERR:'+String(e).substring(0,60));S.outputDir='output';$('#output-dir').textContent=S.outputDir}diag(d.join(' | '));const sel=$('#preset-select');sel.innerHTML=S.presets.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');updateProfileOptions();renderFilters();renderMetadata();renderFiles();updateCrfWarning()}
 init();

@@ -150,3 +150,43 @@ pub fn builtin_presets() -> Vec<Preset> {
         },
     ]
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn builtin_count() { assert_eq!(builtin_presets().len(), 9); }
+
+    #[test]
+    fn ids_are_unique() {
+        let presets = builtin_presets();
+        let mut ids: Vec<&str> = presets.iter().map(|p| p.id.as_str()).collect();
+        ids.sort();
+        ids.dedup();
+        assert_eq!(ids.len(), presets.len());
+    }
+
+    #[test]
+    fn every_preset_has_rate_control() {
+        for p in builtin_presets() {
+            if p.id == "gif" { continue; } // GIF uses remux, no rate control needed
+            assert!(p.params.crf.is_some() || p.params.video_bitrate.is_some(),
+                "Preset {} has neither CRF nor bitrate", p.id);
+        }
+    }
+
+    #[test]
+    fn preset_default_exists() {
+        assert!(builtin_presets().iter().any(|p| p.id == "default"));
+    }
+
+    #[test]
+    fn categories_valid() {
+        for p in builtin_presets() {
+            match p.category {
+                PresetCategory::Video | PresetCategory::Audio | PresetCategory::Image => {}
+            }
+        }
+    }
+}

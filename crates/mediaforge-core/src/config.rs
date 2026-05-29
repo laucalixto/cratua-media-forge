@@ -81,3 +81,28 @@ fn dirs_next() -> Option<PathBuf> {
         dirs::config_dir()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_values() {
+        let c = Config::default();
+        assert!(c.ffmpeg_path.is_none());
+        assert_eq!(c.parallel_jobs, 1);
+    }
+
+    #[test]
+    fn config_path_ends_with_toml() {
+        assert!(Config::config_path().to_string_lossy().ends_with("config.toml"));
+    }
+
+    #[test]
+    fn serialize_roundtrip() {
+        let c = Config::default();
+        let json = serde_json::to_string(&c).unwrap();
+        let c2: Config = serde_json::from_str(&json).unwrap();
+        assert_eq!(c2.parallel_jobs, c.parallel_jobs);
+    }
+}
