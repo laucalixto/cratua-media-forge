@@ -46,7 +46,7 @@
     <img src="/assets/splash.png" alt="Cratua" class="max-w-[600px] max-h-[350px] object-contain mb-6" />
     <div class="absolute top-3 right-4 flex items-center gap-3">
       <span class="text-sm font-medium text-white">Cratua Media Forge</span>
-      <span class="text-xs text-[#9090a0]">v0.1.0</span>
+      <span class="text-xs text-[#9090a0]">v0.3.6</span>
     </div>
   </div>
 
@@ -138,6 +138,13 @@
 
         <!-- ═══════════ ADVANCED MODE ═══════════ -->
         <div id="mode-advanced" class="hidden">
+          <!-- Preset selector (shared with simple mode) -->
+          <div class="mb-3 flex items-center gap-3">
+            <label class="text-xs text-[#9090a0]">Preset</label>
+            <select id="adv-preset-select" class="form-input w-56"></select>
+            <button id="adv-btn-save-preset" class="px-2 py-1 text-xs rounded bg-[#1f1f2e] text-[#9090a0] hover:text-white hover:bg-[#2a2a3a]" title="Save current settings as preset">💾</button>
+            <button id="adv-btn-delete-preset" class="px-2 py-1 text-xs rounded bg-[#1f1f2e] text-[#9090a0] hover:text-[#ef4444] hover:bg-[#2a2a3a]" title="Delete selected preset">🗑</button>
+          </div>
           <!-- Tab bar -->
           <div class="flex border-b border-[#2a2a3a] mb-4">
             <button class="tab-btn active" data-tab="video">Video</button>
@@ -220,7 +227,7 @@
                 <select id="a-pixfmt" class="form-input">
                   <option selected>yuv420p</option><option>yuv422p</option><option>yuv444p</option><option>rgb24</option>
                 </select>
-                <span></span><span id="pixel-warn" class="text-[10px] text-[#f59e0b] hidden"></span>
+                <span class="col-span-2 text-[10px] text-[#f59e0b] hidden" id="pixel-warn"></span>
                 <label class="form-label">Threads</label>
                 <input type="number" id="a-threads" value="0" min="0" max="32" class="form-input" />
               </div>
@@ -325,8 +332,8 @@
             <div class="bg-[#151520] border border-[#2a2a3a] rounded-lg p-4">
               <div id="metadata-list" class="space-y-1 mb-3 text-xs"></div>
               <div class="flex items-center gap-2">
-                <input type="text" id="meta-key" class="form-input w-32" placeholder="Key" />
-                <input type="text" id="meta-val" class="form-input flex-1" placeholder="Value" />
+                <input type="text" id="meta-key" class="w-20 text-xs bg-[#1f1f2e] border border-[#2a2a3a] rounded px-2 py-1.5 text-[#f4f4f6] outline-none focus:border-rose" placeholder="Key" />
+                <input type="text" id="meta-val" class="flex-1 text-xs bg-[#1f1f2e] border border-[#2a2a3a] rounded px-2 py-1.5 text-[#f4f4f6] outline-none focus:border-rose" placeholder="Value" />
                 <button id="meta-add" class="px-3 py-1 text-xs rounded-md bg-rose text-white">Add</button>
               </div>
             </div>
@@ -376,7 +383,7 @@
   <div id="about-modal" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-black/50">
     <div class="bg-[#151520] border border-[#2a2a3a] rounded-xl p-6 w-80 text-center shadow-2xl">
       <h2 class="text-lg font-semibold text-white mb-2">Cratua Media Forge</h2>
-      <p class="text-sm text-[#9090a0]">v0.1.0</p>
+      <p class="text-sm text-[#9090a0]">v0.3.6</p>
       <p class="text-xs text-[#606070] mt-3">Portable media converter powered by ffmpeg.<br/>Built with Rust + Tauri.</p>
       <button id="btn-about-close" class="mt-4 px-4 py-1.5 text-xs rounded-md bg-rose text-white hover:bg-rose-light">OK</button>
     </div>

@@ -210,8 +210,12 @@ pub async fn start_encoding(
     }
 
     // Dragon Trap: validate at least one rate control method is set
+    // Skip when video codec is Copy — no re-encoding, no rate control needed
     for job in &jobs {
-        if job.params.crf.is_none() && job.params.video_bitrate.is_none() {
+        if job.params.video_codec != mediaforge_core::enums::VideoCodec::Copy
+            && job.params.crf.is_none()
+            && job.params.video_bitrate.is_none()
+        {
             return Err(
                 "Dragon Trap: neither CRF nor video bitrate is set.".into()
             );
@@ -230,6 +234,16 @@ pub async fn start_encoding(
         .iter()
         .map(|j| ffmpeg::probe_duration(&j.input_path, ffmpeg_path.as_deref()))
         .collect();
+
+    // Diagnostic: log probe results
+    for (i, d) in durations.iter().enumerate() {
+        let name = jobs[i].input_path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+        eprintln!("[mediaforge] probe_duration({}): {:?}", name, d.map(|us| format!("{:.1}s", us as f64 / 1_000_000.0)));
+        let _ = window.emit("job:diag", serde_json::json!({
+            "file": name,
+            "probe_ok": d.is_some(),
+        }));
+    }
 
     // Create a fresh cancel flag
     let cancel_flag = Arc::new(AtomicBool::new(false));

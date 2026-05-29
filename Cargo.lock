@@ -2918,7 +2918,7 @@ dependencies = [
 
 [[package]]
 name = "mediaforge-core"
-version = "0.1.0"
+version = "0.3.6"
 dependencies = [
  "chrono",
  "fluent",
@@ -2935,7 +2935,7 @@ dependencies = [
 
 [[package]]
 name = "mediaforge-gui"
-version = "0.1.0"
+version = "0.3.6"
 dependencies = [
  "eframe",
  "egui",
@@ -2950,7 +2950,7 @@ dependencies = [
 
 [[package]]
 name = "mediaforge-tauri"
-version = "0.1.0"
+version = "0.3.6"
 dependencies = [
  "mediaforge-core",
  "serde",

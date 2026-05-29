@@ -64,6 +64,7 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 .progress-bar-fill {
   height: 100%;
+  width: 0%;
   background: linear-gradient(90deg, #be4266, #d46484);
   border-radius: 3px;
   transition: width 0.3s ease;
