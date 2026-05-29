@@ -408,3 +408,22 @@ pub enum PresetCategory {
     Audio,
     Image,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test] fn video_codec_count() { assert_eq!(VideoCodec::ALL.len(), 6); }
+    #[test] fn video_codec_names() { assert_eq!(VideoCodec::H264.ffmpeg_name(), "libx264"); assert_eq!(VideoCodec::Copy.ffmpeg_name(), "copy"); }
+    #[test] fn audio_codec_count() { assert_eq!(AudioCodec::ALL.len(), 6); }
+    #[test] fn audio_codec_names() { assert_eq!(AudioCodec::Aac.ffmpeg_name(), "aac"); assert_eq!(AudioCodec::Mp3.ffmpeg_name(), "libmp3lame"); }
+    #[test] fn container_count() { assert_eq!(Container::ALL.len(), 7); }
+    #[test] fn container_ext() { assert_eq!(Container::Mp4.extension(), "mp4"); assert_eq!(Container::Webm.extension(), "webm"); }
+    #[test] fn preset_speed_count() { assert_eq!(PresetSpeed::ALL.len(), 9); }
+    #[test] fn profile_count() { assert_eq!(Profile::ALL.len(), 3); }
+    #[test] fn pixel_format_count() { assert_eq!(PixelFormat::ALL.len(), 5); }
+    #[test] fn scale_algo_values() { let _ = ScaleAlgorithm::Bilinear; let _ = ScaleAlgorithm::Lanczos; }
+    #[test] fn fps_display() { assert_eq!(format!("{}", FpsMode::SameAsSource), "Same as source"); assert_eq!(format!("{}", FpsMode::Fixed(30)), "30 fps"); }
+    #[test] fn movflag_values() { let _ = MovFlag::FastStart; let _ = MovFlag::FragKeyframe; }
+    #[test] fn deinterlace_values() { let _ = DeinterlaceMethod::Yadif; let _ = DeinterlaceMethod::Bwdif; }
+}

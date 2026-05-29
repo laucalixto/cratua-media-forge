@@ -181,3 +181,117 @@ impl JobQueue {
         total / self.jobs.len() as f64
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn encode_params_default_values() {
+        let p = EncodeParams::default();
+        assert_eq!(p.video_codec, crate::enums::VideoCodec::H264);
+        assert_eq!(p.width, 1920);
+        assert_eq!(p.height, 1080);
+        assert_eq!(p.crf, Some(19));
+        assert_eq!(p.audio_bitrate, 128);
+        assert_eq!(p.audio_channels, 2);
+        assert_eq!(p.sample_rate, 44100);
+        assert_eq!(p.threads, 0);
+        assert!(p.video_bitrate.is_none());
+        assert!(p.profile.is_none());
+    }
+
+    #[test]
+    fn job_new_has_unique_id() {
+        let j1 = Job::new("in1.mp4".into(), "out1.mp4".into(), EncodeParams::default());
+        let j2 = Job::new("in2.mp4".into(), "out2.mp4".into(), EncodeParams::default());
+        assert_ne!(j1.id, j2.id);
+    }
+
+    #[test]
+    fn job_progress_pct_pending_is_zero() {
+        let j = Job::new("in.mp4".into(), "out.mp4".into(), EncodeParams::default());
+        assert_eq!(j.progress_pct(), 0.0);
+    }
+
+    #[test]
+    fn job_progress_pct_completed_is_100() {
+        let mut j = Job::new("in.mp4".into(), "out.mp4".into(), EncodeParams::default());
+        j.status = JobStatus::Completed;
+        assert_eq!(j.progress_pct(), 100.0);
+    }
+
+    #[test]
+    fn job_progress_pct_running_reflects_info() {
+        let mut j = Job::new("in.mp4".into(), "out.mp4".into(), EncodeParams::default());
+        j.status = JobStatus::Running(ProgressInfo { progress_pct: 45.5, ..Default::default() });
+        assert_eq!(j.progress_pct(), 45.5);
+    }
+
+    #[test]
+    fn job_progress_pct_failed_is_zero() {
+        let mut j = Job::new("in.mp4".into(), "out.mp4".into(), EncodeParams::default());
+        j.status = JobStatus::Failed("error".into());
+        assert_eq!(j.progress_pct(), 0.0);
+    }
+
+    #[test]
+    fn job_progress_pct_cancelled_is_zero() {
+        let mut j = Job::new("in.mp4".into(), "out.mp4".into(), EncodeParams::default());
+        j.status = JobStatus::Cancelled;
+        assert_eq!(j.progress_pct(), 0.0);
+    }
+
+    #[test]
+    fn job_queue_add_and_count() {
+        let mut q = JobQueue::default();
+        assert_eq!(q.pending_count(), 0);
+        q.add(Job::new("in.mp4".into(), "out.mp4".into(), EncodeParams::default()));
+        assert_eq!(q.pending_count(), 1);
+        assert_eq!(q.total_count(), 1);
+    }
+
+    #[test]
+    fn job_queue_remove() {
+        let mut q = JobQueue::default();
+        let j = Job::new("in.mp4".into(), "out.mp4".into(), EncodeParams::default());
+        let id = j.id;
+        q.add(j);
+        q.remove(id);
+        assert_eq!(q.total_count(), 0);
+    }
+
+    #[test]
+    fn job_queue_overall_progress_empty() {
+        let q = JobQueue::default();
+        assert_eq!(q.overall_progress(), 0.0);
+    }
+
+    #[test]
+    fn job_queue_overall_progress_averages() {
+        let mut q = JobQueue::default();
+        let mut j1 = Job::new("in1.mp4".into(), "out1.mp4".into(), EncodeParams::default());
+        j1.status = JobStatus::Completed;
+        let mut j2 = Job::new("in2.mp4".into(), "out2.mp4".into(), EncodeParams::default());
+        j2.status = JobStatus::Running(ProgressInfo { progress_pct: 50.0, ..Default::default() });
+        q.add(j1);
+        q.add(j2);
+        assert!((q.overall_progress() - 75.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn preset_serialization_roundtrip() {
+        let preset = Preset {
+            id: "test".into(),
+            name: "Test".into(),
+            description: "desc".into(),
+            category: crate::enums::PresetCategory::Video,
+            params: EncodeParams::default(),
+        };
+        let json = serde_json::to_string(&preset).unwrap();
+        let p2: Preset = serde_json::from_str(&json).unwrap();
+        assert_eq!(p2.id, "test");
+        assert_eq!(p2.params.crf, Some(19));
+    }
+}
+

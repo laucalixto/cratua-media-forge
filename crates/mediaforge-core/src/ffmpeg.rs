@@ -3,7 +3,6 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::time::Instant;
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
@@ -210,7 +209,11 @@ pub fn command_to_string_with_ffmpeg(
             }
         })
         .collect();
-    format!("ffmpeg {}", args.join(" "))
+    format!(
+        "{} {}",
+        ffmpeg_path.map(|p| p.to_string_lossy().to_string()).unwrap_or_else(|| "ffmpeg".into()),
+        args.join(" ")
+    )
 }
 
 /// Parse a single progress line from ffmpeg stderr
@@ -445,3 +448,194 @@ where
 
     Ok(cmd_str)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::enums::*;
+    use crate::job::EncodeParams;
+    use std::path::Path;
+
+    fn cmd_str(p: &EncodeParams) -> String {
+        let cmd = build_command(p, Path::new("in.mp4"), Path::new("out.mp4"));
+        let args: Vec<String> = cmd.get_args().map(|a| a.to_string_lossy().to_string()).collect();
+        args.join(" ")
+    }
+
+    #[test]
+    fn codec_h264() { let p = EncodeParams { video_codec: VideoCodec::H264, ..Default::default() }; assert!(cmd_str(&p).contains("libx264")); }
+    #[test]
+    fn codec_h265() { let p = EncodeParams { video_codec: VideoCodec::H265, ..Default::default() }; assert!(cmd_str(&p).contains("libx265")); }
+    #[test]
+    fn codec_vp9() { let p = EncodeParams { video_codec: VideoCodec::VP9, ..Default::default() }; assert!(cmd_str(&p).contains("libvpx-vp9")); }
+    #[test]
+    fn codec_av1() { let p = EncodeParams { video_codec: VideoCodec::AV1, ..Default::default() }; assert!(cmd_str(&p).contains("libaom-av1")); }
+    #[test]
+    fn codec_svtav1() { let p = EncodeParams { video_codec: VideoCodec::SVTAV1, ..Default::default() }; assert!(cmd_str(&p).contains("libsvtav1")); }
+    #[test]
+    fn codec_copy() { let p = EncodeParams { video_codec: VideoCodec::Copy, ..Default::default() }; assert!(cmd_str(&p).contains("-c:v")); assert!(cmd_str(&p).contains("copy")); }
+    #[test]
+    fn crf_present() { let p = EncodeParams { crf: Some(23), ..Default::default() }; assert!(cmd_str(&p).contains("-crf 23")); }
+    #[test]
+    fn crf_none() { let p = EncodeParams { crf: None, ..Default::default() }; assert!(!cmd_str(&p).contains("-crf")); }
+    #[test]
+    fn bitrate_present() { let p = EncodeParams { video_bitrate: Some(5000), ..Default::default() }; assert!(cmd_str(&p).contains("-b:v 5000k")); }
+    #[test]
+    fn crf_and_bitrate_both() { let p = EncodeParams { crf: Some(20), video_bitrate: Some(3000), ..Default::default() }; let s = cmd_str(&p); assert!(s.contains("-crf 20")); assert!(s.contains("-b:v 3000k")); }
+    #[test]
+    fn scale_in_vf() { let p = EncodeParams { width: 640, height: 360, ..Default::default() }; assert!(cmd_str(&p).contains("scale=640:360")); }
+    #[test]
+    fn deinterlace_yadif_in_vf() { let p = EncodeParams { deinterlace: Some(DeinterlaceMethod::Yadif), ..Default::default() }; assert!(cmd_str(&p).contains("yadif")); }
+    #[test]
+    fn deinterlace_bwdif_in_vf() { let p = EncodeParams { deinterlace: Some(DeinterlaceMethod::Bwdif), ..Default::default() }; assert!(cmd_str(&p).contains("bwdif")); }
+    #[test]
+    fn no_deinterlace_when_none() { let p = EncodeParams { deinterlace: None, ..Default::default() }; let s = cmd_str(&p); assert!(!s.contains("yadif")); assert!(!s.contains("bwdif")); }
+    #[test]
+    fn pix_fmt_yuv420p() { let p = EncodeParams { pixel_format: PixelFormat::Yuv420p, ..Default::default() }; assert!(cmd_str(&p).contains("yuv420p")); }
+    #[test]
+    fn pix_fmt_yuv444p() { let p = EncodeParams { pixel_format: PixelFormat::Yuv444p, ..Default::default() }; assert!(cmd_str(&p).contains("yuv444p")); }
+    #[test]
+    fn pix_fmt_nv12() { let p = EncodeParams { pixel_format: PixelFormat::Nv12, ..Default::default() }; assert!(cmd_str(&p).contains("nv12")); }
+    #[test]
+    fn pix_fmt_rgb24() { let p = EncodeParams { pixel_format: PixelFormat::Rgb24, ..Default::default() }; assert!(cmd_str(&p).contains("rgb24")); }
+    #[test]
+    fn preset_slow() { let p = EncodeParams { preset: PresetSpeed::Slow, ..Default::default() }; assert!(cmd_str(&p).contains("-preset slow")); }
+    #[test]
+    fn preset_ultrafast() { let p = EncodeParams { preset: PresetSpeed::Ultrafast, ..Default::default() }; assert!(cmd_str(&p).contains("-preset ultrafast")); }
+    #[test]
+    fn preset_superfast() { let p = EncodeParams { preset: PresetSpeed::Superfast, ..Default::default() }; assert!(cmd_str(&p).contains("-preset superfast")); }
+    #[test]
+    fn preset_veryslow() { let p = EncodeParams { preset: PresetSpeed::Veryslow, ..Default::default() }; assert!(cmd_str(&p).contains("-preset veryslow")); }
+    #[test]
+    fn profile_baseline() { let p = EncodeParams { profile: Some(Profile::Baseline), ..Default::default() }; assert!(cmd_str(&p).contains("-profile:v baseline")); }
+    #[test]
+    fn profile_main() { let p = EncodeParams { profile: Some(Profile::Main), ..Default::default() }; assert!(cmd_str(&p).contains("-profile:v main")); }
+    #[test]
+    fn profile_high() { let p = EncodeParams { profile: Some(Profile::High), ..Default::default() }; assert!(cmd_str(&p).contains("-profile:v high")); }
+    #[test]
+    fn profile_none() { let p = EncodeParams { profile: None, ..Default::default() }; assert!(!cmd_str(&p).contains("-profile:v")); }
+    #[test]
+    fn fps_fixed_30() { let p = EncodeParams { fps: FpsMode::Fixed(30), ..Default::default() }; assert!(cmd_str(&p).contains("-r 30")); }
+    #[test]
+    fn fps_fixed_60() { let p = EncodeParams { fps: FpsMode::Fixed(60), ..Default::default() }; assert!(cmd_str(&p).contains("-r 60")); }
+    #[test]
+    fn fps_same_no_r() { let p = EncodeParams { fps: FpsMode::SameAsSource, ..Default::default() }; assert!(!cmd_str(&p).contains(" -r ")); }
+    #[test]
+    fn scale_algorithm_bilinear() { let p = EncodeParams { scale_algorithm: ScaleAlgorithm::Bilinear, ..Default::default() }; assert!(cmd_str(&p).contains("bilinear")); }
+    #[test]
+    fn scale_algorithm_bicubic() { let p = EncodeParams { scale_algorithm: ScaleAlgorithm::Bicubic, ..Default::default() }; assert!(cmd_str(&p).contains("bicubic")); }
+    #[test]
+    fn threads_4() { let p = EncodeParams { threads: 4, ..Default::default() }; assert!(cmd_str(&p).contains("-threads 4")); }
+    #[test]
+    fn threads_0_auto() { let p = EncodeParams { threads: 0, ..Default::default() }; assert!(!cmd_str(&p).contains("-threads")); }
+    #[test]
+    fn trim_flags() { let p = EncodeParams { trim_start: Some("00:01:00".into()), trim_end: Some("00:05:00".into()), ..Default::default() }; let s = cmd_str(&p); assert!(s.contains("-ss 00:01:00")); assert!(s.contains("-to 00:05:00")); }
+    #[test]
+    fn trim_start_only() { let p = EncodeParams { trim_start: Some("00:00:10".into()), trim_end: None, ..Default::default() }; let s = cmd_str(&p); assert!(s.contains("-ss 00:00:10")); assert!(!s.contains("-to")); }
+    #[test]
+    fn trim_end_only() { let p = EncodeParams { trim_start: None, trim_end: Some("00:01:00".into()), ..Default::default() }; let s = cmd_str(&p); assert!(!s.contains("-ss")); assert!(s.contains("-to 00:01:00")); }
+    #[test]
+    fn audio_codec_aac() { let p = EncodeParams { audio_codec: AudioCodec::Aac, ..Default::default() }; assert!(cmd_str(&p).contains("-c:a aac")); }
+    #[test]
+    fn audio_codec_mp3() { let p = EncodeParams { audio_codec: AudioCodec::Mp3, ..Default::default() }; assert!(cmd_str(&p).contains("-c:a libmp3lame")); }
+    #[test]
+    fn audio_codec_opus() { let p = EncodeParams { audio_codec: AudioCodec::Opus, ..Default::default() }; assert!(cmd_str(&p).contains("libopus")); }
+    #[test]
+    fn audio_codec_vorbis() { let p = EncodeParams { audio_codec: AudioCodec::Vorbis, ..Default::default() }; assert!(cmd_str(&p).contains("libvorbis")); }
+    #[test]
+    fn audio_codec_flac() { let p = EncodeParams { audio_codec: AudioCodec::Flac, ..Default::default() }; assert!(cmd_str(&p).contains("-c:a flac")); }
+    #[test]
+    fn audio_codec_copy() { let p = EncodeParams { audio_codec: AudioCodec::Copy, ..Default::default() }; assert!(cmd_str(&p).contains("-c:a copy")); }
+    #[test]
+    fn audio_bitrate_192() { let p = EncodeParams { audio_bitrate: 192, ..Default::default() }; assert!(cmd_str(&p).contains("-b:a 192k")); }
+    #[test]
+    fn audio_channels() { let p = EncodeParams { audio_channels: 2, ..Default::default() }; assert!(cmd_str(&p).contains("-ac 2")); }
+    #[test]
+    fn audio_channels_1() { let p = EncodeParams { audio_channels: 1, ..Default::default() }; assert!(cmd_str(&p).contains("-ac 1")); }
+    #[test]
+    fn sample_rate_48k() { let p = EncodeParams { sample_rate: 48000, ..Default::default() }; assert!(cmd_str(&p).contains("-ar 48000")); }
+    #[test]
+    fn sample_rate_44100() { let p = EncodeParams { sample_rate: 44100, ..Default::default() }; assert!(cmd_str(&p).contains("-ar 44100")); }
+    #[test]
+    fn movflags_faststart() { let p = EncodeParams { movflags: vec![MovFlag::FastStart], ..Default::default() }; assert!(cmd_str(&p).contains("-movflags faststart")); }
+    #[test]
+    fn movflags_both() { let p = EncodeParams { movflags: vec![MovFlag::FastStart, MovFlag::FragKeyframe], ..Default::default() }; let s = cmd_str(&p); assert!(s.contains("faststart")); assert!(s.contains("frag_keyframe")); }
+    #[test]
+    fn movflags_empty() { let p = EncodeParams { movflags: vec![], ..Default::default() }; assert!(!cmd_str(&p).contains("-movflags")); }
+    #[test]
+    fn metadata_present() { let mut p = EncodeParams::default(); p.metadata.insert("title".into(), "Test".into()); assert!(cmd_str(&p).contains("-metadata title=Test")); }
+    #[test]
+    fn metadata_multiple_keys() { let mut p = EncodeParams::default(); p.metadata.insert("title".into(), "Test".into()); p.metadata.insert("artist".into(), "Artist".into()); let s = cmd_str(&p); assert!(s.contains("-metadata title=Test")); assert!(s.contains("-metadata artist=Artist")); }
+    #[test]
+    fn container_mp4_output() { let p = EncodeParams { container: Container::Mp4, ..Default::default() }; assert!(cmd_str(&p).ends_with("out.mp4")); }
+    #[test]
+    fn container_webm_present() { let p = EncodeParams { container: Container::Webm, ..Default::default() }; let s = cmd_str(&p); assert!(s.ends_with("out.mp4")); }
+    #[test]
+    fn max_bitrate_and_bufsize() { let p = EncodeParams { max_bitrate: Some(8000), bufsize: Some(16000), ..Default::default() }; let s = cmd_str(&p); assert!(s.contains("-maxrate 8000k")); assert!(s.contains("-bufsize 16000k")); }
+    #[test]
+    fn max_bitrate_none() { let p = EncodeParams { max_bitrate: None, ..Default::default() }; assert!(!cmd_str(&p).contains("-maxrate")); }
+    #[test]
+    fn bufsize_none() { let p = EncodeParams { bufsize: None, ..Default::default() }; assert!(!cmd_str(&p).contains("-bufsize")); }
+    #[test]
+    fn extra_args_present() { let p = EncodeParams { extra_args: vec!["-an".into()], ..Default::default() }; assert!(cmd_str(&p).contains("-an")); }
+    #[test]
+    fn video_filter_hflip() { let p = EncodeParams { video_filters: vec![VideoFilter::HFlip], ..Default::default() }; assert!(cmd_str(&p).contains("hflip")); }
+    #[test]
+    fn video_filter_vflip() { let p = EncodeParams { video_filters: vec![VideoFilter::VFlip], ..Default::default() }; assert!(cmd_str(&p).contains("vflip")); }
+    #[test]
+    fn video_filter_rotate_90() { let p = EncodeParams { video_filters: vec![VideoFilter::Rotate(90)], ..Default::default() }; assert!(cmd_str(&p).contains("rotate=")); }
+    #[test]
+    fn video_filter_denoise() { let p = EncodeParams { video_filters: vec![VideoFilter::Denoise], ..Default::default() }; assert!(cmd_str(&p).contains("hqdn3d")); }
+    #[test]
+    fn video_filter_grayscale() { let p = EncodeParams { video_filters: vec![VideoFilter::Grayscale], ..Default::default() }; assert!(cmd_str(&p).contains("format=gray")); }
+    #[test]
+    fn video_filters_multiple() { let p = EncodeParams { video_filters: vec![VideoFilter::HFlip, VideoFilter::Denoise], ..Default::default() }; let s = cmd_str(&p); assert!(s.contains("hflip")); assert!(s.contains("hqdn3d")); }
+    #[test]
+    fn no_video_filters_when_empty() { let p = EncodeParams { video_filters: vec![], deinterlace: None, ..Default::default() }; let s = cmd_str(&p); assert!(s.contains("scale=")); assert!(!s.contains("hflip")); }
+    #[test]
+    fn audio_filter_volume() { let p = EncodeParams { audio_filters: vec![AudioFilter::Volume(2.0)], ..Default::default() }; assert!(cmd_str(&p).contains("volume=2.00")); }
+    #[test]
+    fn audio_filter_loudnorm() { let p = EncodeParams { audio_filters: vec![AudioFilter::Loudnorm], ..Default::default() }; assert!(cmd_str(&p).contains("loudnorm")); }
+    #[test]
+    fn audio_filter_highpass() { let p = EncodeParams { audio_filters: vec![AudioFilter::Highpass(100)], ..Default::default() }; assert!(cmd_str(&p).contains("highpass=f=100")); }
+    #[test]
+    fn audio_filter_lowpass() { let p = EncodeParams { audio_filters: vec![AudioFilter::Lowpass(3000)], ..Default::default() }; assert!(cmd_str(&p).contains("lowpass=f=3000")); }
+    #[test]
+    fn audio_filters_multiple() { let p = EncodeParams { audio_filters: vec![AudioFilter::Volume(2.0), AudioFilter::Loudnorm], ..Default::default() }; let s = cmd_str(&p); assert!(s.contains("volume=2.00")); assert!(s.contains("loudnorm")); }
+    #[test]
+    fn no_audio_filters_when_empty() { let p = EncodeParams { audio_filters: vec![], ..Default::default() }; assert!(!cmd_str(&p).contains("-af")); }
+    #[test]
+    fn no_overwrite_flag() { let p = EncodeParams::default(); assert!(cmd_str(&p).contains("-y")); }
+    #[test]
+    fn progress_pipe_stderr() { let p = EncodeParams::default(); assert!(cmd_str(&p).contains("-progress pipe:2")); }
+    #[test]
+    fn command_to_string_format() { let p = EncodeParams::default(); let s = command_to_string(&p, Path::new("in.mp4"), Path::new("out.mp4")); assert!(s.starts_with("ffmpeg")); assert!(s.contains("-i")); }
+    #[test]
+    fn ffmpeg_path_custom_in_command_string() { let s = command_to_string_with_ffmpeg(&EncodeParams::default(), Path::new("in.mp4"), Path::new("out.mp4"), Some(Path::new("/custom/ffmpeg"))); assert!(s.starts_with("/custom/ffmpeg")); }
+    #[test]
+    fn parse_progress_valid() { let r = parse_progress_line("out_time_us=123456"); assert!(r.is_some()); let (k, v) = r.unwrap(); assert_eq!(k, "out_time_us"); assert_eq!(v, "123456"); }
+    #[test]
+    fn parse_progress_invalid() { assert!(parse_progress_line("not a progress line").is_none()); }
+    #[test]
+    fn parse_progress_empty() { let data: &[u8] = b""; let info = parse_progress_output(&data[..]); assert_eq!(info.frame, 0); assert_eq!(info.fps, 0.0); assert_eq!(info.out_time_us, 0); }
+    #[test]
+    fn parse_progress_output_fields() {
+        let data = b"frame=100\nfps=25.0\nbitrate=1200.5kbits/s\ntotal_size=500000\nout_time_us=4000000\nspeed=2.5x\nprogress=continue\n";
+        let info = parse_progress_output(&data[..]);
+        assert_eq!(info.frame, 100);
+        assert_eq!(info.fps, 25.0);
+        assert!(info.bitrate.contains("1200.5"));
+        assert_eq!(info.total_size, 500000);
+        assert_eq!(info.out_time_us, 4000000);
+        assert_eq!(info.speed, 2.5);
+    }
+    #[test]
+    fn build_command_with_ffmpeg_path() {
+        let cmd = build_command_with_ffmpeg(&EncodeParams::default(), Path::new("in.mp4"), Path::new("out.mp4"), Some(Path::new("/my/ffmpeg")));
+        let prog = cmd.get_program().to_string_lossy();
+        assert_eq!(prog, "/my/ffmpeg");
+    }
+    #[test]
+    fn probe_duration_requires_input() { assert!(probe_duration(Path::new("nonexistent.mp4"), None).is_none()); }
+}
+

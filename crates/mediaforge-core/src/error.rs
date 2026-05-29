@@ -30,3 +30,15 @@ pub enum MediaForgeError {
     #[error("Encoding cancelled by user")]
     Cancelled,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cancelled_display() { assert_eq!(format!("{}", MediaForgeError::Cancelled), "Encoding cancelled by user"); }
+    #[test]
+    fn ffmpeg_process_display() { assert!(format!("{}", MediaForgeError::FfmpegProcess("boom".into())).contains("boom")); }
+    #[test]
+    fn no_input_files_display() { assert!(format!("{}", MediaForgeError::NoInputFiles).contains("No input files")); }
+}
