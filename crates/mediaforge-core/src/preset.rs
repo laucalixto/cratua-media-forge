@@ -59,13 +59,15 @@ pub fn builtin_presets() -> Vec<Preset> {
         Preset {
             id: "web-vp9".into(),
             name: "Web Video (VP9)".into(),
-            description: "Royalty-free VP9 for WebM: CRF 30, best for YouTube/Firefox".into(),
+            description: "Royalty-free VP9 for WebM: CRF 30, Opus audio".into(),
             category: PresetCategory::Video,
             params: EncodeParams {
                 video_codec: VideoCodec::VP9,
                 container: Container::Webm,
+                audio_codec: AudioCodec::Opus,
                 crf: Some(30),
                 pixel_format: PixelFormat::Yuv420p,
+                movflags: vec![],
                 threads: 0,
                 ..Default::default()
             },
@@ -135,15 +137,17 @@ pub fn builtin_presets() -> Vec<Preset> {
         Preset {
             id: "gif".into(),
             name: "Animated GIF".into(),
-            description: "Convert video to GIF: 480p, 15fps, optimized palette".into(),
+            description: "Convert video to GIF: 480p, 10fps, H.264 re-encode".into(),
             category: PresetCategory::Image,
             params: EncodeParams {
-                video_codec: VideoCodec::Copy, // handled by ffmpeg gif muxer
+                video_codec: VideoCodec::H264,
                 container: Container::Gif,
                 width: 480,
                 height: 270,
-                crf: None,
+                crf: Some(25),
+                fps: crate::enums::FpsMode::Fixed(10),
                 pixel_format: PixelFormat::Yuv420p,
+                movflags: vec![],
                 threads: 0,
                 ..Default::default()
             },
@@ -170,7 +174,6 @@ mod tests {
     #[test]
     fn every_preset_has_rate_control() {
         for p in builtin_presets() {
-            if p.id == "gif" { continue; } // GIF uses remux, no rate control needed
             assert!(p.params.crf.is_some() || p.params.video_bitrate.is_some(),
                 "Preset {} has neither CRF nor bitrate", p.id);
         }

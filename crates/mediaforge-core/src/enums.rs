@@ -181,6 +181,51 @@ impl PresetSpeed {
         PresetSpeed::Slower,
         PresetSpeed::Veryslow,
     ];
+
+    /// VP9 uses -cpu-used (0=best quality/slow, 5=fast/low quality)
+    pub fn vp9_cpu_used(&self) -> u8 {
+        match self {
+            PresetSpeed::Ultrafast => 5,
+            PresetSpeed::Superfast => 4,
+            PresetSpeed::Veryfast => 3,
+            PresetSpeed::Faster => 3,
+            PresetSpeed::Fast => 2,
+            PresetSpeed::Medium => 2,
+            PresetSpeed::Slow => 1,
+            PresetSpeed::Slower => 0,
+            PresetSpeed::Veryslow => 0,
+        }
+    }
+
+    /// AV1 (libaom) uses -cpu-used (0=best, 8=fast)
+    pub fn av1_cpu_used(&self) -> u8 {
+        match self {
+            PresetSpeed::Ultrafast => 8,
+            PresetSpeed::Superfast => 6,
+            PresetSpeed::Veryfast => 5,
+            PresetSpeed::Faster => 4,
+            PresetSpeed::Fast => 3,
+            PresetSpeed::Medium => 3,
+            PresetSpeed::Slow => 2,
+            PresetSpeed::Slower => 1,
+            PresetSpeed::Veryslow => 0,
+        }
+    }
+
+    /// SVT-AV1 uses -preset (0=best/slow, 13=fast/low quality)
+    pub fn svtav1_preset(&self) -> u8 {
+        match self {
+            PresetSpeed::Ultrafast => 13,
+            PresetSpeed::Superfast => 10,
+            PresetSpeed::Veryfast => 8,
+            PresetSpeed::Faster => 6,
+            PresetSpeed::Fast => 5,
+            PresetSpeed::Medium => 5,
+            PresetSpeed::Slow => 3,
+            PresetSpeed::Slower => 1,
+            PresetSpeed::Veryslow => 0,
+        }
+    }
 }
 
 // ── Profile ──

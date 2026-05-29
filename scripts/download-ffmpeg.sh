@@ -32,15 +32,18 @@ echo "[2/2] Windows static build..."
 WIN_URL="https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
 WIN_ZIP="$FFMPEG_DIR/ffmpeg-windows.zip"
 
-if [ ! -f "$FFMPEG_DIR/ffmpeg.exe" ]; then
+if [ ! -f "$FFMPEG_DIR/ffmpeg.exe" ] || [ ! -f "$FFMPEG_DIR/ffprobe.exe" ]; then
     curl -L -o "$WIN_ZIP" "$WIN_URL"
     unzip -o "$WIN_ZIP" -d "$FFMPEG_DIR/win-tmp"
     # Find ffmpeg.exe in the extracted directory
     WIN_EXE=$(find "$FFMPEG_DIR/win-tmp" -name "ffmpeg.exe" -type f | head -1)
     if [ -n "$WIN_EXE" ]; then
         cp "$WIN_EXE" "$FFMPEG_DIR/ffmpeg.exe"
+        WIN_PROBE=$(find "$FFMPEG_DIR/win-tmp" -name "ffprobe.exe" -type f | head -1)
+        [ -n "$WIN_PROBE" ] && cp "$WIN_PROBE" "$FFMPEG_DIR/ffprobe.exe"
         echo "  -> $FFMPEG_DIR/ffmpeg.exe"
         ls -lh "$FFMPEG_DIR/ffmpeg.exe"
+        [ -f "$FFMPEG_DIR/ffprobe.exe" ] && echo "  -> $FFMPEG_DIR/ffprobe.exe" && ls -lh "$FFMPEG_DIR/ffprobe.exe"
     fi
     rm -rf "$FFMPEG_DIR/win-tmp" "$WIN_ZIP"
 else

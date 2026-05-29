@@ -64,6 +64,31 @@ pub fn build_command_with_ffmpeg(
         .arg("-i")
         .arg(input);
 
+    // Suppress console window on Windows (child ffmpeg process)
+    #[cfg(target_os = "windows")]
+    {
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+
+    // ── GIF: special handling (no video codec, palette filter, no audio) ──
+    if params.container == crate::enums::Container::Gif {
+        let fps = match params.fps {
+            crate::enums::FpsMode::Fixed(f) => f,
+            _ => 10,
+        };
+        let mut vf = format!(
+            "fps={},scale={}:{}:flags={},split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse",
+            fps, params.width, params.height, params.scale_algorithm.ffmpeg_flag()
+        );
+        for f in &params.video_filters {
+            vf.push_str(&format!(",{}", f.to_ffmpeg_string()));
+        }
+        cmd.arg("-vf").arg(vf);
+        cmd.arg("-progress").arg("pipe:2").arg("-nostats");
+        cmd.arg(output);
+        return cmd;
+    }
+
     // Trim
     if let Some(ss) = &params.trim_start {
         cmd.arg("-ss").arg(ss);
@@ -89,12 +114,29 @@ pub fn build_command_with_ffmpeg(
         cmd.arg("-bufsize").arg(format!("{}k", bufsize));
     }
 
-    // Preset
-    cmd.arg("-preset").arg(params.preset.ffmpeg_name());
+    // Preset (codec-dependent: VP9/AV1 use -cpu-used + -deadline, not -preset)
+    match params.video_codec {
+        crate::enums::VideoCodec::VP9 => {
+            cmd.arg("-deadline").arg("good");
+            cmd.arg("-cpu-used").arg(params.preset.vp9_cpu_used().to_string());
+        }
+        crate::enums::VideoCodec::AV1 => {
+            cmd.arg("-cpu-used").arg(params.preset.av1_cpu_used().to_string());
+        }
+        crate::enums::VideoCodec::SVTAV1 => {
+            cmd.arg("-preset").arg(params.preset.svtav1_preset().to_string());
+        }
+        _ => {
+            cmd.arg("-preset").arg(params.preset.ffmpeg_name());
+        }
+    }
 
-    // Profile
+    // Profile (skip for VP9/AV1/SVTAV1 — not supported)
     if let Some(profile) = &params.profile {
-        cmd.arg("-profile:v").arg(profile.ffmpeg_name());
+        use crate::enums::VideoCodec;
+        if !matches!(params.video_codec, VideoCodec::VP9 | VideoCodec::AV1 | VideoCodec::SVTAV1) {
+            cmd.arg("-profile:v").arg(profile.ffmpeg_name());
+        }
     }
 
     // Video filters
@@ -176,12 +218,6 @@ pub fn build_command_with_ffmpeg(
     cmd.arg("-nostats");
 
     cmd.arg(output);
-
-    // Suppress console window on Windows (child ffmpeg process)
-    #[cfg(target_os = "windows")]
-    {
-        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
-    }
 
     cmd
 }
@@ -637,5 +673,10 @@ mod tests {
     }
     #[test]
     fn probe_duration_requires_input() { assert!(probe_duration(Path::new("nonexistent.mp4"), None).is_none()); }
+    #[test]
+    fn gif_no_video_codec() { let p = EncodeParams { container: Container::Gif, fps: FpsMode::Fixed(10), width: 480, height: 270, ..Default::default() }; let s = cmd_str(&p); assert!(!s.contains("-c:v"), "GIF: {s}"); assert!(s.contains("palettegen")); assert!(!s.contains("-c:a")); }
+    #[test]
+    fn webm_vp9_uses_deadline() { let p = EncodeParams { video_codec: VideoCodec::VP9, container: Container::Webm, ..Default::default() }; let s = cmd_str(&p); assert!(s.contains("-deadline good")); assert!(s.contains("-cpu-used")); assert!(!s.contains("-preset ")); }
+    #[test]
+    fn webm_no_profile() { let p = EncodeParams { video_codec: VideoCodec::VP9, profile: Some(Profile::High), container: Container::Webm, ..Default::default() }; assert!(!cmd_str(&p).contains("-profile:v")); }
 }
-
