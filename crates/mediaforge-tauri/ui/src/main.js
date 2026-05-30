@@ -5,7 +5,7 @@ import { listen } from '@tauri-apps/api/event';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 
 // ── State ──
-const S={mode:'simple',presets:[],selectedPreset:'default',params:{video_codec:'H264',width:1920,height:1080,scale_algorithm:'Lanczos',fps:'SameAsSource',crf:19,video_bitrate:null,max_bitrate:null,bufsize:null,preset:'Medium',profile:null,pixel_format:'Yuv420p',deinterlace:null,video_filters:[],audio_codec:'Aac',audio_bitrate:128,audio_channels:2,sample_rate:44100,audio_filters:[],container:'Mp4',movflags:['FastStart'],threads:0,metadata:{},trim_start:null,trim_end:null,extra_args:[]},files:[],outputDir:'',jobs:[],isEncoding:false,config:null,history:[]};
+const S={mode:'simple',presets:[],selectedPreset:'default',params:{video_codec:'H264',width:1920,height:1080,scale_algorithm:'Lanczos',fps:'SameAsSource',crf:19,video_bitrate:null,max_bitrate:null,bufsize:null,preset:'Medium',profile:null,pixel_format:'Yuv420p',deinterlace:null,video_filters:[],audio_codec:'Aac',audio_bitrate:128,audio_channels:2,sample_rate:48000,audio_filters:[],container:'Mp4',movflags:['FastStart'],threads:0,metadata:{},trim_start:null,trim_end:null,extra_args:[]},files:[],outputDir:'',jobs:[],isEncoding:false,config:null,history:[]};
 
 const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s),on=(el,ev,fn)=>el.addEventListener(ev,fn);
 function normPath(p){return(p||'').replace(/\\/g,'/')}
@@ -133,7 +133,7 @@ function collectAdvParams(){
     fps,width:even($('#a-width').value),height:even($('#a-height').value),
     scale_algorithm:$('#a-scale').value||'Lanczos',
     audio_bitrate:parseInt($('#a-abitrate').value)||128,audio_channels:parseInt($('#a-channels').value)||2,
-    sample_rate:parseInt($('#a-samplerate').value)||44100,threads:parseInt($('#a-threads').value)||0,
+    sample_rate:parseInt($('#a-samplerate').value)||48000,threads:parseInt($('#a-threads').value)||0,
     movflags:mf,trim_start:$('#a-trim-start').value.trim()||null,trim_end:$('#a-trim-end').value.trim()||null,
     extra_args:ea?ea.split(/\s+/).filter(Boolean):[]
   }
