@@ -5,7 +5,7 @@ import { listen } from '@tauri-apps/api/event';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 
 // ── State ──
-const S={mode:'simple',presets:[],selectedPreset:'default',params:{video_codec:'H264',width:1920,height:1080,scale_algorithm:'Lanczos',fps:'SameAsSource',crf:19,video_bitrate:null,max_bitrate:null,bufsize:null,preset:'Medium',profile:null,pixel_format:'Yuv420p',deinterlace:null,video_filters:[],audio_codec:'Aac',audio_bitrate:128,audio_channels:2,sample_rate:48000,audio_filters:[],container:'Mp4',movflags:['FastStart'],threads:0,metadata:{},trim_start:null,trim_end:null,extra_args:[]},files:[],outputDir:'',jobs:[],isEncoding:false,config:null,history:[]};
+const S={mode:'simple',presets:[],selectedPreset:'default',_syncingPreset:false,params:{video_codec:'H264',width:1920,height:1080,scale_algorithm:'Lanczos',fps:'SameAsSource',crf:19,video_bitrate:null,max_bitrate:null,bufsize:null,preset:'Medium',profile:null,pixel_format:'Yuv420p',deinterlace:null,video_filters:[],audio_codec:'Aac',audio_bitrate:128,audio_channels:2,sample_rate:48000,audio_filters:[],container:'Mp4',movflags:['FastStart'],threads:0,metadata:{},trim_start:null,trim_end:null,extra_args:[]},files:[],outputDir:'',jobs:[],isEncoding:false,config:null,history:[]};
 
 const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s),on=(el,ev,fn)=>el.addEventListener(ev,fn);
 function normPath(p){return(p||'').replace(/\\/g,'/')}
@@ -44,7 +44,7 @@ function hookCmdPreview(){
     '#a-faststart','#a-fragkf','#a-trim-start','#a-trim-end','#a-extra-args',
     '#a-crf','#a-crf-num','#a-abitrate','#a-abitrate-num','#a-deint','#a-faststart','#a-fragkf',
     '#vfilter-add','#afilter-add'];
-  ids.forEach(id=>{const el=$(id);if(el){on(el,'change',()=>updateCmdPreview());on(el,'input',()=>updateCmdPreview())}});
+  ids.forEach(id=>{const el=$(id);if(el){on(el,'change',()=>{updateCmdPreview();if(!S._syncingPreset)markPresetCustom()});on(el,'input',()=>{updateCmdPreview();if(!S._syncingPreset)markPresetCustom()})}});
 }
 
 // ── Collapsible (▶/▼ toggle) ──
@@ -73,7 +73,8 @@ on($('#a-pixfmt'),'change',updatePixelWarn);
 function updatePixelWarn(){const pix=$('#a-pixfmt').value,prof=$('#a-profile').value,el=$('#pixel-warn');if(!el)return;const bad=(pix==='yuv444p'||pix==='rgb24')&&(prof==='baseline');el.style.display=bad?'block':'none';if(bad)el.textContent='⚠ This pixel format requires profile main or high'}
 
 // ── Auto container ──
-function autoContainer(){const codec=$('#a-vcodec').value;if(codec==='VP9')$('#a-container').value='Webm';if(codec==='Copy')$('#a-container').value='Mp4'}function onContainerChange(){const cont=$('#a-container').value;if(cont==='Webm'){$('#a-vcodec').value='VP9';$('#a-acodec').value='Opus';$('#a-faststart').checked=false;$('#a-fragkf').checked=false}else if(cont==='Gif'){$('#a-vcodec').value='H264';$('#a-fps-mode').value='fixed';$('#a-fps-val').classList.remove('hidden');$('#a-fps-val').value=10;$('#a-faststart').checked=false;$('#a-fragkf').checked=false}}
+function autoContainer(){const codec=$('#a-vcodec').value;if(codec==='VP9')$('#a-container').value='Webm';if(codec==='Copy')$('#a-container').value='Mp4'}function fixOpusSampleRate(){const ac=$('#a-acodec').value;const sr=parseInt($('#a-samplerate').value);if(ac==='Opus'&&![48000,24000,16000,12000,8000].includes(sr)){$('#a-samplerate').value='48000'}}function onContainerChange(){const cont=$('#a-container').value;if(cont==='Webm'){$('#a-vcodec').value='VP9';$('#a-acodec').value='Opus';$('#a-faststart').checked=false;$('#a-fragkf').checked=false;fixOpusSampleRate()}else if(cont==='Gif'){$('#a-vcodec').value='H264';$('#a-fps-mode').value='fixed';$('#a-fps-val').classList.remove('hidden');$('#a-fps-val').value=10;$('#a-faststart').checked=false;$('#a-fragkf').checked=false}}
+on($('#a-acodec'),'change',()=>{fixOpusSampleRate();updateCmdPreview()});
 on($('#a-container'),'change',()=>{onContainerChange();updateCmdPreview()});
 
 // ── Filters ──
@@ -140,19 +141,74 @@ function collectAdvParams(){
 }
 
 // ── Preset selector ──
-on($('#preset-select'),'change',()=>{const id=$('#preset-select').value,p=S.presets.find(x=>x.id===id);if(p&&p.params){S.selectedPreset=id;S.params={...p.params};syncPresetToUI()}});
-function syncPresetToUI(){['s','a'].forEach(pre=>{const crf=$(pre==='s'?'#s-crf':'#a-crf'),crfn=$(pre==='s'?'#s-crf-num':'#a-crf-num'),crfv=$(pre==='s'?'#s-crf-val':'#a-crf-val');if(crf){crf.value=S.params.crf??19;if(crfn)crfn.value=S.params.crf??19;if(crfv)crfv.textContent=S.params.crf??19}const w=$(pre==='s'?'#s-width':'#a-width'),h=$(pre==='s'?'#s-height':'#a-height');if(w)w.value=S.params.width||1920;if(h)h.value=S.params.height||1080;const ab=$(pre==='s'?'#s-audio':'#a-abitrate'),abn=$(pre==='s'?'#s-audio-num':'#a-abitrate-num'),abv=$(pre==='s'?'#s-audio-val':'#a-abitrate-val');if(ab){ab.value=S.params.audio_bitrate||128;if(abn)abn.value=S.params.audio_bitrate||128;if(abv)abv.textContent=(S.params.audio_bitrate||128)+' kbps'}const di=$(pre==='s'?'#s-deint':'#a-deint');if(di)di.checked=!!S.params.deinterlace});const vc=$('#a-vcodec');if(vc&&S.params.video_codec)vc.value=S.params.video_codec;const cn=$('#a-container');if(cn&&S.params.container)cn.value=S.params.container;updateProfileOptions();autoContainer();renderFilters();renderMetadata()}
+on($('#preset-select'),'change',()=>{const id=$('#preset-select').value,p=S.presets.find(x=>x.id===id);if(p&&p.params){S._syncingPreset=true;S.selectedPreset=id;S.params={...p.params};syncPresetToUI();S._syncingPreset=false}});
+function syncPresetToUI(){
+  // Helper to set value if element exists
+  const sv=(id,v)=>{const el=$(id);if(el&&v!==undefined&&v!==null)el.value=v};
+  // Values from S.params
+  const p=S.params;
+  // Simple mode fields
+  sv('#s-width',p.width);sv('#s-height',p.height);
+  sv('#s-crf',p.crf??19);const scn=$('#s-crf-num');if(scn)scn.value=p.crf??19;const scv=$('#s-crf-val');if(scv)scv.textContent=p.crf??19;
+  sv('#s-audio',p.audio_bitrate);const san=$('#s-audio-num');if(san)san.value=p.audio_bitrate;const sav=$('#s-audio-val');if(sav)sav.textContent=(p.audio_bitrate||128)+' kbps';
+  const sdi=$('#s-deint');if(sdi)sdi.checked=!!p.deinterlace;
+  // Advanced mode fields
+  sv('#a-width',p.width);sv('#a-height',p.height);
+  sv('#a-crf',p.crf??19);const acn=$('#a-crf-num');if(acn)acn.value=p.crf??19;const acv=$('#a-crf-val');if(acv)acv.textContent=p.crf??19;
+  sv('#a-abitrate',p.audio_bitrate);const aan=$('#a-abitrate-num');if(aan)aan.value=p.audio_bitrate;const aav=$('#a-abitrate-val');if(aav)aav.textContent=(p.audio_bitrate||128)+' kbps';
+  const adi=$('#a-deint');if(adi)adi.checked=!!p.deinterlace;
+  sv('#a-deint-method',p.deinterlace==='Bwdif'?'bwdif':'yadif');
+  // Video
+  sv('#a-vcodec',p.video_codec);
+  sv('#a-container',p.container);
+  sv('#a-pixfmt',p.pixel_format?p.pixel_format.toLowerCase():'yuv420p');
+  sv('#a-preset-speed',p.preset?p.preset.toLowerCase():'medium');
+  sv('#a-scale',p.scale_algorithm||'Lanczos');
+  sv('#a-threads',p.threads??0);
+  // FPS
+  if(p.fps==='SameAsSource'){sv('#a-fps-mode','same');$('#a-fps-val').classList.add('hidden')}
+  else if(p.fps&&typeof p.fps==='object'&&'Fixed' in p.fps){sv('#a-fps-mode','fixed');sv('#a-fps-val',p.fps.Fixed);$('#a-fps-val').classList.remove('hidden')}
+  else{sv('#a-fps-mode','same');$('#a-fps-val').classList.add('hidden')}
+  // Audio
+  sv('#a-acodec',p.audio_codec||'Aac');
+  sv('#a-samplerate',p.sample_rate||48000);
+  sv('#a-channels',p.audio_channels??2);
+  // Movflags
+  const mf=p.movflags||[];
+  const fs=$('#a-faststart');if(fs)fs.checked=mf.includes('FastStart');
+  const fk=$('#a-fragkf');if(fk)fk.checked=mf.includes('FragKeyframe');
+  // Trim
+  sv('#a-trim-start',p.trim_start||'');
+  sv('#a-trim-end',p.trim_end||'');
+  // Extra args
+  sv('#a-extra-args',(p.extra_args||[]).join(' '));
+  // Profile
+  sv('#a-profile',p.profile?p.profile.toLowerCase():'');
+  // Side effects
+  updateProfileOptions();autoContainer();renderFilters();renderMetadata();updateCrfWarning();
+  // Update selectedPreset to match
+  S.selectedPreset=$('#adv-preset-select').value||$('#preset-select').value||'default';
+}
+// Mark preset as custom when user changes any field
+function markPresetCustom(){
+  S.selectedPreset='';
+  ['#preset-select','#adv-preset-select'].forEach(sid=>{const sel=$(sid);if(sel&&sel.value!=='')sel.value=''})
+}
 
 // ── Save / Delete preset ──
-on($('#adv-preset-select'),'change',()=>{const id=$('#adv-preset-select').value,p=S.presets.find(x=>x.id===id);if(p&&p.params){S.selectedPreset=id;S.params={...p.params};syncPresetToUI()}});
-on($('#adv-btn-save-preset'),'click',async()=>{const name=prompt('Preset name:');if(!name)return;const params=collectAdvParams();const id=name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');const ex=S.presets.find(p=>p.id===id);if(ex){if(!await confirm('Preset "'+ex.name+'" already exists. Overwrite?'))return}try{await invoke('create_preset',{preset:{id,name,description:'Custom preset',category:'Video',params}});S.presets=await invoke('get_presets');['#preset-select','#adv-preset-select'].forEach(sid=>{const sel=$(sid);if(sel){sel.innerHTML=S.presets.map(p=>'<option value="'+p.id+'">'+p.name+'</option>').join('');sel.value=id}});diag('Preset saved: '+name)}catch(e){diag('Save error: '+e)}});
-on($('#adv-btn-delete-preset'),'click',async()=>{const id=$('#adv-preset-select').value,p=S.presets.find(x=>x.id===id);if(!p)return;const bi=['default','web-h264','web-h265','web-vp9','archive-h264','audio-mp3','audio-aac','audio-opus','gif'];if(bi.includes(id)){diag('Cannot delete built-in preset');return}if(!await confirm('Delete preset "'+p.name+'"?'))return;try{await invoke('delete_preset',{id});S.presets=await invoke('get_presets');['#preset-select','#adv-preset-select'].forEach(sid=>{const sel=$(sid);if(sel)sel.innerHTML=S.presets.map(x=>'<option value="'+x.id+'">'+x.name+'</option>').join('')});diag('Preset deleted')}catch(e){diag('Delete error: '+e)}});
-on($('#btn-save-preset'),'click',async()=>{const name=prompt('Preset name:');if(!name)return;const params=S.mode==='simple'?collectSimpleParams():collectAdvParams();const id=name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');const ex=S.presets.find(p=>p.id===id);if(ex){if(!await confirm(`Preset "${ex.name}" already exists. Overwrite?`))return}try{await invoke('create_preset',{preset:{id,name,description:'Custom preset',category:'Video',params}});S.presets=await invoke('get_presets');['#preset-select','#adv-preset-select'].forEach(sid=>{const sel=$(sid);if(sel){sel.innerHTML=S.presets.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');sel.value=id}});diag('Preset saved: '+name)}catch(e){diag('Save error: '+e)}});
-on($('#btn-delete-preset'),'click',async()=>{const id=$('#preset-select').value,p=S.presets.find(x=>x.id===id);if(!p)return;const bi=['default','web-h264','web-h265','web-vp9','archive-h264','audio-mp3','audio-aac','audio-opus','gif'];if(bi.includes(id)){diag('Cannot delete built-in preset');return}if(!await confirm(`Delete preset "${p.name}"?`))return;try{await invoke('delete_preset',{id});S.presets=await invoke('get_presets');['#preset-select','#adv-preset-select'].forEach(sid=>{const sel=$(sid);if(sel)sel.innerHTML=S.presets.map(x=>`<option value="${x.id}">${x.name}</option>`).join('')});diag('Preset deleted')}catch(e){diag('Delete error: '+e)}});
+on($('#adv-preset-select'),'change',()=>{const id=$('#adv-preset-select').value,p=S.presets.find(x=>x.id===id);if(p&&p.params){S._syncingPreset=true;S.selectedPreset=id;S.params={...p.params};syncPresetToUI();S._syncingPreset=false}});
+on($('#adv-btn-save-preset'),'click',async()=>{const name=prompt('Preset name:');if(!name)return;const params=collectAdvParams();const id=name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');const ex=S.presets.find(p=>p.id===id);if(ex){if(!await confirm('Preset "'+ex.name+'" already exists. Overwrite?'))return}try{await invoke('create_preset',{preset:{id,name,description:'Custom preset',category:'Video',params}});S.presets=await invoke('get_presets');populatePresetDropdowns(id);diag('Preset saved: '+name)}catch(e){diag('Save error: '+e)}});
+on($('#adv-btn-delete-preset'),'click',async()=>{const id=$('#adv-preset-select').value,p=S.presets.find(x=>x.id===id);if(!p)return;const bi=['default','web-h264','web-h265','web-vp9','archive-h264','audio-mp3','audio-aac','audio-opus','gif'];if(bi.includes(id)){diag('Cannot delete built-in preset');return}if(!await confirm('Delete preset "'+p.name+'"?'))return;try{await invoke('delete_preset',{id});S.presets=await invoke('get_presets');populatePresetDropdowns();diag('Preset deleted')}catch(e){diag('Delete error: '+e)}});
+on($('#btn-save-preset'),'click',async()=>{const name=prompt('Preset name:');if(!name)return;const params=S.mode==='simple'?collectSimpleParams():collectAdvParams();const id=name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');const ex=S.presets.find(p=>p.id===id);if(ex){if(!await confirm(`Preset "${ex.name}" already exists. Overwrite?`))return}try{await invoke('create_preset',{preset:{id,name,description:'Custom preset',category:'Video',params}});S.presets=await invoke('get_presets');populatePresetDropdowns(id);diag('Preset saved: '+name)}catch(e){diag('Save error: '+e)}});
+on($('#btn-delete-preset'),'click',async()=>{const id=$('#preset-select').value,p=S.presets.find(x=>x.id===id);if(!p)return;const bi=['default','web-h264','web-h265','web-vp9','archive-h264','audio-mp3','audio-aac','audio-opus','gif'];if(bi.includes(id)){diag('Cannot delete built-in preset');return}if(!await confirm(`Delete preset "${p.name}"?`))return;try{await invoke('delete_preset',{id});S.presets=await invoke('get_presets');populatePresetDropdowns();diag('Preset deleted')}catch(e){diag('Delete error: '+e)}});
 
-// ── Queue ──
+// ── Populate preset dropdowns (with Custom option)
+function populatePresetDropdowns(selId){
+  const opts='<option value="">— Custom —</option>'+S.presets.map(p=>'<option value="'+p.id+'">'+p.name+'</option>').join('');
+  ['#preset-select','#adv-preset-select'].forEach(sid=>{const sel=$(sid);if(sel){sel.innerHTML=opts;if(selId)sel.value=selId}})
+}
 on($('#btn-add-queue'),'click',()=>{if(!S.files.length){diag('No files');return}const bp=S.mode==='simple'?collectSimpleParams():collectAdvParams();const ext=bp.container.toLowerCase();const ow=[];S.files.forEach(f=>{const nm=f.split('/').pop(),st=nm.includes('.')?nm.substring(0,nm.lastIndexOf('.')):nm;let out=`${S.outputDir}/${st}.${ext}`;if(out===f){out=`${S.outputDir}/${st}_converted.${ext}`;ow.push(nm)}S.jobs.push({input:f,output:out,params:structuredClone(bp),status:'pending',progress:0})});S.files=[];renderFiles();renderQueue();if(ow.length){$('#status-text').textContent=`Renamed ${ow.length} to _converted`;$('#status-text').classList.add('text-[#f59e0b]');setTimeout(()=>$('#status-text').classList.remove('text-[#f59e0b]'),5000)}else{$('#status-text').textContent=`Queued ${S.jobs.length} job(s)`}});
-function renderQueue(){const l=$('#queue-list');if(!S.jobs.length){l.innerHTML='';updateStatus();return}l.innerHTML=S.jobs.map(j=>{const inn=j.input.split('/').pop(),outn=j.output.split('/').pop();switch(j.status){case'pending':return`<div class="flex items-center justify-between text-xs py-1 px-2"><span class="text-[#c0c0d0] truncate">${inn} → ${outn}</span><span class="text-[#606070] shrink-0 ml-2">pending</span></div>`;case'running':return`<div class="text-xs py-1"><div class="flex justify-between text-[#c0c0d0] mb-1"><span class="truncate">${inn}</span><span>${Math.round(j.progress)}%</span></div><div class="progress-bar"><div class="progress-bar-fill" style="width:${Math.max(1,j.progress)}%"></div></div></div>`;case'done':return`<div class="flex items-center justify-between text-xs py-1 px-2"><span class="text-[#22c55e] truncate">✓ ${inn} → ${outn}</span><span class="text-[#22c55e] shrink-0 ml-2">done</span></div>`;case'failed':return`<div class="flex flex-col text-xs py-1 px-2"><div class="flex items-center justify-between"><span class="text-[#ef4444] truncate">✗ ${inn}</span><span class="text-[#ef4444] shrink-0 ml-2">failed</span></div><div class="text-[#606070] mt-1 text-[10px] cursor-pointer hover:text-[#c0c0d0]" title="${(j.error||'').replace(/"/g,'&quot;')}" onclick="navigator.clipboard.writeText(this.getAttribute('title'))">${(j.error||'unknown').substring(0,500)}</div></div>`;case'cancelled':return`<div class="flex items-center justify-between text-xs py-1 px-2"><span class="text-[#f59e0b] truncate">⊘ ${inn}</span><span class="text-[#f59e0b] shrink-0 ml-2">cancelled</span></div>`;default:return''}}).join('');updateStatus()}
+function renderQueue(){const l=$('#queue-list');if(!S.jobs.length){l.innerHTML='';updateStatus();return}l.innerHTML=S.jobs.map(j=>{const inn=j.input.split('/').pop(),outn=j.output.split('/').pop();switch(j.status){case'pending':return`<div class="flex items-center justify-between text-xs py-1 px-2"><span class="text-[#c0c0d0] truncate">${inn} → ${outn}</span><span class="text-[#606070] shrink-0 ml-2">pending</span></div>`;case'running':{const w=Math.max(1,j.progress);return`<div id="job-running" class="text-xs py-1"><div class="flex justify-between text-[#c0c0d0] mb-1"><span class="truncate">${inn}</span><span class="progress-pct">${Math.round(j.progress)}%</span></div><div style="height:8px;background:#2a2a3a;border-radius:4px"><div class="progress-fill" style="height:8px;width:${w}%;background:#be4266;border-radius:4px"></div></div></div>`}case'done':return`<div class="flex items-center justify-between text-xs py-1 px-2"><span class="text-[#22c55e] truncate">✓ ${inn} → ${outn}</span><span class="text-[#22c55e] shrink-0 ml-2">done</span></div>`;case'failed':return`<div class="flex flex-col text-xs py-1 px-2"><div class="flex items-center justify-between"><span class="text-[#ef4444] truncate">✗ ${inn}</span><span class="text-[#ef4444] shrink-0 ml-2">failed</span></div><div class="text-[#606070] mt-1 text-[10px] cursor-pointer hover:text-[#c0c0d0]" title="${(j.error||'').replace(/"/g,'&quot;')}" onclick="navigator.clipboard.writeText(this.getAttribute('title'))">${(j.error||'unknown').substring(0,500)}</div></div>`;case'cancelled':return`<div class="flex items-center justify-between text-xs py-1 px-2"><span class="text-[#f59e0b] truncate">⊘ ${inn}</span><span class="text-[#f59e0b] shrink-0 ml-2">cancelled</span></div>`;default:return''}}).join('');updateStatus()}
 
 // ── Re-queue + Clear ──
 on($('#btn-requeue'),'click',()=>{const done=S.jobs.filter(j=>j.status==='done'||j.status==='failed'||j.status==='cancelled');if(!done.length){diag('No finished jobs');return}const files=done.map(j=>j.input);S.jobs=S.jobs.filter(j=>j.status==='pending'||j.status==='running');addFiles(files);renderQueue();diag('Re-run: '+files.length+' file(s)')});
@@ -164,7 +220,7 @@ function finishEncoding(){S.isEncoding=false;$('#btn-start').disabled=false;$('#
 on($('#btn-cancel'),'click',async()=>{await invoke('cancel_encoding');S.jobs.forEach(j=>{if(j.status==='pending'||j.status==='running')j.status='cancelled'});renderQueue();finishEncoding();diag('Cancelled')});
 
 // ── Events ──
-async function setupEvents(){await listen('job:diag',e=>{const d=e.payload;$('#status-text').textContent=`Probe: ${d.file} ${d.probe_ok?'OK':'FAILED (no ffprobe)'}`});await listen('job:progress',e=>{const d=e.payload,j=S.jobs.find(x=>x.status==='running'||x.status==='pending');if(j){j.status='running';j.progress=d.progress_pct??0}renderQueue()});await listen('job:done',e=>{const d=e.payload,j=S.jobs.find(x=>x.status==='running');if(j){j.status=d.status==='completed'?'done':(d.status==='cancelled'?'cancelled':'failed');j.error=d.error;j.command=d.command||''}renderQueue();if(S.jobs.every(x=>x.status==='done'||x.status==='failed'||x.status==='cancelled')){finishEncoding();loadHistory();const cmd=S.jobs.find(x=>x.command)?.command||'';$('#status-text').textContent='Complete'+(cmd?' — '+cmd.split(' ').slice(0,6).join(' ')+'...':'')}})}
+async function setupEvents(){await listen('job:diag',e=>{const d=e.payload;$('#status-text').textContent=`Probe: ${d.file} ${d.probe_ok?'OK':'FAILED (no ffprobe)'}`});await listen('job:progress',e=>{const d=e.payload,j=S.jobs.find(x=>x.status==='running'||x.status==='pending');if(j){const wasPending=j.status==='pending';j.status='running';j.progress=d.progress_pct??0;if(wasPending||!$('#job-running')){renderQueue()}else{const w=Math.max(1,j.progress);const fill=$('#job-running .progress-fill');if(fill)fill.style.width=w+'%';const pct=$('#job-running .progress-pct');if(pct)pct.textContent=Math.round(j.progress)+'%'}diag('progress: '+Math.round(j.progress)+'%')}});await listen('job:done',e=>{const d=e.payload,j=S.jobs.find(x=>x.status==='running');if(j){j.status=d.status==='completed'?'done':(d.status==='cancelled'?'cancelled':'failed');j.error=d.error;j.command=d.command||''}renderQueue();if(S.jobs.every(x=>x.status==='done'||x.status==='failed'||x.status==='cancelled')){finishEncoding();loadHistory();const cmd=S.jobs.find(x=>x.command)?.command||'';$('#status-text').textContent='Complete'+(cmd?' — '+cmd.split(' ').slice(0,6).join(' ')+'...':'')}})}
 
 // ── Modals ──
 on($('#btn-settings'),'click',()=>$('#settings-modal').classList.remove('hidden'));on($('#btn-settings-cancel'),'click',()=>$('#settings-modal').classList.add('hidden'));on($('#btn-settings-save'),'click',async()=>{if(S.config)S.config.ffmpeg_path=$('#ffmpeg-path').value||null;await invoke('save_config',{config:S.config});$('#settings-modal').classList.add('hidden')});
@@ -176,5 +232,5 @@ function renderHistory(){const l=$('#history-list');if(!l)return;if(!S.history.l
 on($('#btn-clear-history'),'click',async()=>{await invoke('clear_history');S.history=[];renderHistory()});
 
 // ── Init ──
-async function init(){const d=[];d.push('TI:'+(!!window.__TAURI_INTERNALS__));try{S.presets=await invoke('get_presets');d.push('pre:'+S.presets.length);S.config=await invoke('get_config');S.outputDir=S.config?.output_dir||await invoke('get_default_output_dir');updateOutputDisplay();await setupEvents();await setupDragDrop();await loadHistory();d.push('READY')}catch(e){d.push('ERR:'+String(e).substring(0,60));S.outputDir='output';$('#output-dir').textContent=S.outputDir}diag(d.join(' | '));['#preset-select','#adv-preset-select'].forEach(sid=>{const sel=$(sid);if(sel)sel.innerHTML=S.presets.map(p=>`<option value="${p.id}">${p.name}</option>`).join('')});updateProfileOptions();renderFilters();renderMetadata();renderFiles();updateCrfWarning();hookCmdPreview();updateCmdPreview()}
+async function init(){const d=[];d.push('TI:'+(!!window.__TAURI_INTERNALS__));try{S.presets=await invoke('get_presets');d.push('pre:'+S.presets.length);S.config=await invoke('get_config');S.outputDir=S.config?.output_dir||await invoke('get_default_output_dir');updateOutputDisplay();await setupEvents();await setupDragDrop();await loadHistory();d.push('READY')}catch(e){d.push('ERR:'+String(e).substring(0,60));S.outputDir='output';$('#output-dir').textContent=S.outputDir}diag(d.join(' | '));populatePresetDropdowns('default');updateProfileOptions();renderFilters();renderMetadata();renderFiles();updateCrfWarning();hookCmdPreview();updateCmdPreview()}
 init();
