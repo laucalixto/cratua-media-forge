@@ -170,7 +170,20 @@ pub fn build_command_with_ffmpeg(
     cmd.arg("-c:a").arg(params.audio_codec.ffmpeg_name());
     cmd.arg("-b:a").arg(format!("{}k", params.audio_bitrate));
     cmd.arg("-ac").arg(params.audio_channels.to_string());
-    cmd.arg("-ar").arg(params.sample_rate.to_string());
+
+    // Sample rate — Opus only supports 48000, 24000, 16000, 12000, 8000 Hz
+    let sample_rate = if params.audio_codec == crate::enums::AudioCodec::Opus
+        && ![48000, 24000, 16000, 12000, 8000].contains(&params.sample_rate)
+    {
+        log::warn!(
+            "Opus does not support {} Hz sample rate; falling back to 48000 Hz",
+            params.sample_rate
+        );
+        48000
+    } else {
+        params.sample_rate
+    };
+    cmd.arg("-ar").arg(sample_rate.to_string());
 
     // Audio filters
     if !params.audio_filters.is_empty() {
@@ -329,6 +342,14 @@ pub fn probe_duration(input: &Path, ffmpeg_path: Option<&Path>) -> Option<u64> {
     }
 
     let mut cmd = Command::new(&ffprobe);
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+
     cmd.args([
             "-v", "quiet",
             "-show_entries", "format=duration",
@@ -399,6 +420,13 @@ where
     let cmd_str = command_to_string_with_ffmpeg(params, input, output, resolved);
     cmd.stderr(Stdio::piped());
     cmd.stdin(Stdio::null());
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
 
     let mut child = cmd
         .spawn()
