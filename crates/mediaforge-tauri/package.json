@@ -1,7 +1,7 @@
 {
   "name": "mediaforge-tauri",
   "private": true,
-  "version": "0.3.19",
+  "version": "0.3.20",
   "scripts": {
     "dev": "V=$(node -p \"require('./package.json').version\") && sed -i \"s/v__VERSION__\\|v[0-9]\\+\\.[0-9]\\+\\.[0-9]\\+/v$V/\" ui/index.html && esbuild ui/src/main.js --bundle --outfile=ui/bundle.js --servedir=ui --serve=localhost:1420",
     "build": "V=$(node -p \"require('./package.json').version\") && sed -i \"s/v__VERSION__\\|v[0-9]\\+\\.[0-9]\\+\\.[0-9]\\+/v$V/\" ui/index.html && esbuild ui/src/main.js --bundle --minify --outfile=ui/bundle.js"
