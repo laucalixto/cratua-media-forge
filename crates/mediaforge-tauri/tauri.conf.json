@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicedoc/tauri/dev/crates/tauri-config-schema/schema.json",
   "productName": "Cratua Media Forge",
-  "version": "0.3.17",
+  "version": "0.3.18",
   "identifier": "com.cratua.mediaforge",
   "build": {
     "frontendDist": "./ui",
