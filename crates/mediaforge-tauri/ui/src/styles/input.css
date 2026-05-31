@@ -21,6 +21,23 @@
   --text-dim: #adb5bd;
 }
 
+/* Light mode overrides for Tailwind hardcoded colors */
+.light .bg-\[\#151520\],
+.light .bg-\[\#0b0b12\] { background: var(--bg-card) !important; }
+.light .bg-\[\#1f1f2e\] { background: var(--bg-input) !important; }
+.light .border-\[\#2a2a3a\] { border-color: var(--border) !important; }
+.light .text-\[\#9090a0\] { color: var(--text-muted) !important; }
+.light .text-\[\#606070\] { color: var(--text-dim) !important; }
+.light .text-\[\#c0c0d0\] { color: var(--text-secondary) !important; }
+.light .text-\[\#f4f4f6\] { color: var(--text-primary) !important; }
+.light .text-white { color: #212529 !important; }
+.light .text-\[\#22c55e\] { color: #198754 !important; }
+.light .text-\[\#ef4444\] { color: #dc3545 !important; }
+.light .text-\[\#f59e0b\] { color: #e6a817 !important; }
+.light .hover\:bg-\[\#1f1f2e\]:hover { background: var(--bg-input) !important; }
+.light .hover\:bg-\[\#2a2a3a\]:hover { background: var(--border) !important; }
+.light .hover\:text-white:hover { color: #212529 !important; }
+
 @theme {
   --color-rose: #be4266;
   --color-rose-light: #d46484;

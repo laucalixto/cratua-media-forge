@@ -8,20 +8,20 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 </head>
-<body class="bg-[#0b0b12] text-[#f4f4f6] font-sans" oncontextmenu="return false">
+<body class="font-sans" style="background:var(--bg-deep);color:var(--text-primary)" oncontextmenu="return false">
   <!-- Splash -->
   <div id="splash" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#0b0b12]">
     <img src="/assets/splash.png" alt="Cratua" class="max-w-[600px] max-h-[350px] object-contain mb-6" />
     <div class="absolute top-3 right-4 flex items-center gap-3">
       <span class="text-sm font-medium text-white">Cratua Media Forge</span>
-      <span class="text-xs text-[#9090a0]">v0.3.23</span>
+      <span class="text-xs text-[#9090a0]">v0.3.26</span>
     </div>
   </div>
 
   <!-- App Shell -->
   <div id="app" class="hidden flex flex-col h-full">
     <!-- Header -->
-    <header class="h-12 flex items-center justify-between px-4 bg-[#151520] border-b border-[#2a2a3a] shrink-0">
+    <header class="h-12 flex items-center justify-between px-4 border-b shrink-0" style="background:var(--bg-card);border-color:var(--border)">
       <span class="text-base font-semibold text-white tracking-tight">Cratua Media Forge</span>
       <div class="flex items-center gap-1">
         <button id="btn-simple" class="px-3 py-1.5 text-xs font-medium rounded-md bg-rose text-white">Simple</button>
@@ -35,7 +35,7 @@
     <!-- Body -->
     <div class="flex flex-1 overflow-hidden">
       <!-- Sidebar -->
-      <aside id="sidebar" class="bg-[#151520] border-r border-[#2a2a3a] flex flex-col shrink-0">
+      <aside id="sidebar" class="border-r flex flex-col shrink-0" style="background:var(--bg-card);border-color:var(--border)">
         <div class="p-3 border-b border-[#2a2a3a]">
           <h2 class="text-xs font-semibold text-[#9090a0] uppercase tracking-wider mb-2">Files</h2>
           <button id="btn-add-files" class="w-full py-1.5 text-xs font-medium rounded-md border border-dashed border-[#2a2a3a] text-[#9090a0] hover:border-rose hover:text-rose transition-colors">+ Add Files</button>
@@ -312,7 +312,7 @@
     </div>
 
     <!-- Queue Footer -->
-    <footer class="border-t border-[#2a2a3a] bg-[#151520] shrink-0">
+    <footer class="border-t shrink-0" style="background:var(--bg-card);border-color:var(--border)">
       <div class="flex items-center gap-3 px-4 py-2">
         <span class="text-xs font-semibold text-[#9090a0] uppercase tracking-wider">Queue</span>
         <button id="btn-add-queue" class="px-4 py-1.5 text-xs font-medium rounded-md bg-rose text-white hover:bg-rose-light transition-colors disabled:opacity-40 disabled:cursor-not-allowed">Add to Queue</button>
@@ -325,7 +325,7 @@
     </footer>
 
     <!-- Status Bar -->
-    <div class="h-7 flex items-center justify-between px-4 bg-[#0b0b12] border-t border-[#2a2a3a] text-xs text-[#606070] shrink-0">
+    <div class="h-7 flex items-center justify-between px-4 border-t text-xs shrink-0" style="background:var(--bg-deep);border-color:var(--border);color:var(--text-dim)">
       <span id="status-text">Ready</span>
       <span id="status-count">0 files | 0 jobs</span>
     </div>
@@ -370,7 +370,7 @@
   <div id="about-modal" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-black/50">
     <div class="bg-[#151520] border border-[#2a2a3a] rounded-xl p-6 w-80 text-center shadow-2xl">
       <h2 class="text-lg font-semibold text-white mb-2">Cratua Media Forge</h2>
-      <p class="text-sm text-[#9090a0]">v0.3.23</p>
+      <p class="text-sm text-[#9090a0]">v0.3.26</p>
       <p class="text-xs text-[#606070] mt-3">Portable media converter powered by ffmpeg.<br/>Built with Rust + Tauri.</p>
       <div class="mt-4 pt-3 border-t border-[#2a2a3a] text-left text-xs text-[#9090a0] space-y-1">
         <div class="flex justify-between"><span>Add Files</span><kbd class="text-[#c0c0d0]">Ctrl+O</kbd></div>
