@@ -82,3 +82,94 @@ describe('parseAudioFilter()', () => {
     it('Lowpass(3000)', () => assert.deepEqual(parseAudioFilter('Lowpass(3000)'), { Lowpass: 3000 }));
     it('unknown returns fallback', () => assert.deepEqual(parseAudioFilter('Unknown'), { Loudnorm: null }));
 });
+
+// ── New functions from code review ──
+
+function clamp(v, min, max, fallback) {
+    const n = parseInt(v);
+    return isNaN(n) ? fallback : Math.max(min, Math.min(max, n));
+}
+
+describe('clamp()', () => {
+    it('within range', () => assert.equal(clamp(50, 0, 100, 0), 50));
+    it('below min', () => assert.equal(clamp(-5, 0, 100, 0), 0));
+    it('above max', () => assert.equal(clamp(999, 0, 100, 0), 100));
+    it('NaN returns fallback', () => assert.equal(clamp('abc', 0, 100, 42), 42));
+    it('empty string returns fallback', () => assert.equal(clamp('', 0, 100, 42), 42));
+});
+
+// ── Error sanitization (encodeURIComponent roundtrip) ──
+
+describe('error sanitization', () => {
+    it('roundtrips encode/decode', () => {
+        const err = 'Error: can\'t "parse" this & that <tag>';
+        const safe = encodeURIComponent(err);
+        // encodeURIComponent escapes ", <, >, & but not '
+        assert(!safe.includes('"'));
+        assert(!safe.includes('<'));
+        assert(!safe.includes('>'));
+        assert.equal(decodeURIComponent(safe), err);
+    });
+    it('handles null/undefined', () => {
+        const safe = encodeURIComponent(null || 'unknown');
+        assert.equal(decodeURIComponent(safe), 'unknown');
+    });
+    it('handles ffmpeg error with quotes', () => {
+        const err = 'ffmpeg exited with code 1\nCommand: ffmpeg -i "in.mp4"';
+        const safe = encodeURIComponent(err);
+        const decoded = decodeURIComponent(safe);
+        assert.equal(decoded, err);
+        // Safe for data attribute
+        assert(!safe.includes('"'));
+    });
+});
+
+// ── Filter label helpers ──
+
+function vfLabel(f) {
+    if (typeof f === 'string') return f;
+    for (const k of ['HFlip', 'VFlip', 'Denoise', 'Grayscale', 'Rotate', 'Brightness', 'Contrast', 'Saturation']) {
+        if (k in f) {
+            switch (k) {
+                case 'HFlip': return 'Flip H';
+                case 'VFlip': return 'Flip V';
+                case 'Denoise': return 'Denoise';
+                case 'Grayscale': return 'Grayscale';
+                case 'Rotate': return 'Rotate ' + f.Rotate + '\u00b0';
+                case 'Brightness': return 'Bright ' + f.Brightness;
+                case 'Contrast': return 'Contrast ' + f.Contrast;
+                case 'Saturation': return 'Sat ' + f.Saturation;
+            }
+        }
+    }
+    return JSON.stringify(f);
+}
+
+function afLabel(f) {
+    if (typeof f === 'string') return f;
+    for (const k of ['Loudnorm', 'Volume', 'Highpass', 'Lowpass']) {
+        if (k in f) {
+            switch (k) {
+                case 'Loudnorm': return 'Loudnorm';
+                case 'Volume': return 'Vol ' + f.Volume + 'x';
+                case 'Highpass': return 'HP ' + f.Highpass + 'Hz';
+                case 'Lowpass': return 'LP ' + f.Lowpass + 'Hz';
+            }
+        }
+    }
+    return JSON.stringify(f);
+}
+
+describe('vfLabel()', () => {
+    it('HFlip', () => assert.equal(vfLabel({ HFlip: null }), 'Flip H'));
+    it('Rotate 90', () => assert.equal(vfLabel({ Rotate: 90 }), 'Rotate 90°'));
+    it('Brightness', () => assert.equal(vfLabel({ Brightness: 0.5 }), 'Bright 0.5'));
+    it('string pass-through', () => assert.equal(vfLabel('custom'), 'custom'));
+});
+
+describe('afLabel()', () => {
+    it('Loudnorm', () => assert.equal(afLabel({ Loudnorm: null }), 'Loudnorm'));
+    it('Volume 2x', () => assert.equal(afLabel({ Volume: 2.0 }), 'Vol 2x'));
+    it('Highpass 100Hz', () => assert.equal(afLabel({ Highpass: 100 }), 'HP 100Hz'));
+    it('string pass-through', () => assert.equal(afLabel('custom'), 'custom'));
+});

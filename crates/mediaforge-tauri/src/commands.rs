@@ -399,3 +399,124 @@ pub fn clear_history() {
     let path = history_path();
     let _ = std::fs::remove_file(&path);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mediaforge_core::enums::PresetCategory;
+    use mediaforge_core::job::EncodeParams;
+
+    #[test]
+    fn get_presets_includes_builtins() {
+        let presets = get_presets();
+        assert!(!presets.is_empty(), "should include built-in presets");
+        assert!(presets.iter().any(|p| p.id == "default"), "should have default preset");
+    }
+
+    #[test]
+    fn get_builtin_preset_ids_has_default() {
+        let ids = get_builtin_preset_ids();
+        assert!(ids.contains(&"default".to_string()));
+    }
+
+    #[test]
+    fn create_preset_rejects_builtin_id() {
+        let p = Preset {
+            id: "default".into(),
+            name: "test".into(),
+            description: "test".into(),
+            category: PresetCategory::Video,
+            params: EncodeParams::default(),
+        };
+        let result = create_preset(p);
+        assert!(result.is_err(), "should reject builtin ID");
+    }
+
+    #[test]
+    fn delete_preset_rejects_builtin_id() {
+        let result = delete_preset("default".into());
+        assert!(result.is_err(), "should reject builtin ID");
+    }
+
+    #[test]
+    fn create_and_delete_custom_preset() {
+        let id = "__test_custom_preset__";
+        let p = Preset {
+            id: id.into(),
+            name: "Test Preset".into(),
+            description: "Integration test".into(),
+            category: PresetCategory::Video,
+            params: EncodeParams::default(),
+        };
+        // Create
+        let r = create_preset(p);
+        assert!(r.is_ok(), "create failed: {:?}", r.err());
+        // Verify it appears in get_presets
+        let presets = get_presets();
+        assert!(presets.iter().any(|p| p.id == id), "custom preset not found after create");
+        // Delete
+        let r = delete_preset(id.into());
+        assert!(r.is_ok(), "delete failed: {:?}", r.err());
+    }
+
+    #[test]
+    fn check_output_overwrite_existing() {
+        // Cargo.toml always exists in the project root
+        let existing = check_output_overwrite(vec!["Cargo.toml".into()]);
+        assert_eq!(existing.len(), 1);
+    }
+
+    #[test]
+    fn check_output_overwrite_nonexistent() {
+        let result = check_output_overwrite(vec!["/nonexistent/path/xyzzy.mp4".into()]);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn build_command_preview_contains_ffmpeg() {
+        let cmd = build_command_preview(EncodeParams::default());
+        assert!(cmd.starts_with("ffmpeg"), "got: {}", cmd);
+        assert!(cmd.contains("-i input.mp4"));
+    }
+
+    #[test]
+    fn detect_ffmpeg_with_none() {
+        let result = detect_ffmpeg(None);
+        // May or may not find ffmpeg depending on env, but shouldn't panic
+        // Just verify it returns Option<String>
+        let _ = result;
+    }
+
+    #[test]
+    fn detect_ffmpeg_with_bogus_path() {
+        let result = detect_ffmpeg(Some("/nonexistent/ffmpeg".into()));
+        // Bogus path → falls through to auto-detect or None
+        let _ = result;
+    }
+
+    #[test]
+    fn get_default_output_dir_ends_with_output() {
+        let dir = get_default_output_dir();
+        assert!(dir.ends_with("output"), "got: {}", dir);
+    }
+
+    #[test]
+    fn cancel_encoding_no_active() {
+        // Should not panic when no encoding is active
+        cancel_encoding();
+    }
+
+    #[test]
+    fn get_and_clear_history() {
+        let initial = get_history();
+        // Clear and verify it's empty (or at least doesn't panic)
+        clear_history();
+        let after = get_history();
+        assert!(after.is_empty(), "history should be empty after clear");
+        
+        // Restore initial history if there was any
+        if !initial.is_empty() {
+            save_history(&initial);
+        }
+    }
+}
