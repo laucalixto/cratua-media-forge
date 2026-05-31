@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Fixed
+- Progress bar: CSS class mismatch (`progress-fill` → `progress-bar-fill`)
+- Progress bar: added `.progress-pct` CSS class for percentage text
+- Light mode: progress bar background override
+
 ### Added
 - Encoding timeout (30s) — ffmpeg hang detection
 - Settings: output directory, default mode, default preset

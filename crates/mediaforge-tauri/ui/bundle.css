@@ -863,6 +863,9 @@ input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-o
   background: linear-gradient(90deg, #be4266, #d46484);
   border-radius: 3px;
 }
+.progress-pct {
+  font-variant-numeric: tabular-nums;
+}
 .file-card {
   display: flex;
   align-items: center;
