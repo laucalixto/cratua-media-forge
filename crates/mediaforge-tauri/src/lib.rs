@@ -11,6 +11,7 @@ pub fn run() {
             get_default_output_dir,
             check_output_overwrite,
             get_presets,
+            get_builtin_preset_ids,
             create_preset,
             delete_preset,
             get_config,

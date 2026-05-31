@@ -2,8 +2,12 @@
 # Cratua Media Forge — Full test suite
 set -euo pipefail
 
-echo "=== Rust Tests ==="
+echo "=== Rust Tests (core) ==="
 cargo test -p mediaforge-core
+
+echo ""
+echo "=== Rust Tests (tauri) ==="
+cargo test -p mediaforge-tauri --lib
 
 echo ""
 echo "=== JS Tests ==="

@@ -1,5 +1,26 @@
 @import "tailwindcss";
 
+:root {
+  --bg-deep: #0b0b12;
+  --bg-card: #151520;
+  --bg-input: #1f1f2e;
+  --border: #2a2a3a;
+  --text-primary: #f4f4f6;
+  --text-secondary: #c0c0d0;
+  --text-muted: #9090a0;
+  --text-dim: #606070;
+}
+.light {
+  --bg-deep: #f8f9fa;
+  --bg-card: #ffffff;
+  --bg-input: #e9ecef;
+  --border: #dee2e6;
+  --text-primary: #212529;
+  --text-secondary: #495057;
+  --text-muted: #6c757d;
+  --text-dim: #adb5bd;
+}
+
 @theme {
   --color-rose: #be4266;
   --color-rose-light: #d46484;
@@ -89,4 +110,33 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 .file-card:hover .remove-btn {
   opacity: 1;
+}
+
+/* ── Layout (moved from index.html) ── */
+html, body { height: 100%; margin: 0; overflow: hidden; }
+#app { height: 100%; }
+#sidebar { min-width: 200px; max-width: 260px; }
+
+/* ── Tabs ── */
+.tab-btn { padding: 6px 16px; border-radius: 6px 6px 0 0; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s; border: none; background: transparent; color: #9090a0; }
+.tab-btn.active { background: #151520; color: #be4266; }
+.tab-btn:hover:not(.active) { color: #c0c0d0; }
+
+/* ── Form grid ── */
+.form-grid { display: grid; grid-template-columns: 130px 1fr; gap: 8px 16px; align-items: center; font-size: 13px; }
+.form-label { color: #9090a0; text-align: right; }
+.form-input { background: #1f1f2e; border: 1px solid #2a2a3a; border-radius: 6px; padding: 5px 10px; color: #f4f4f6; font-size: 13px; outline: none; width: 100%; box-sizing: border-box; }
+.form-input:focus { border-color: #be4266; }
+select.form-input { cursor: pointer; }
+input[type="range"] { accent-color: #be4266; }
+input[type="checkbox"] { accent-color: #be4266; }
+
+/* ── Collapsible ── */
+.collapsible-header { display: flex; align-items: center; gap: 6px; padding: 8px 0; cursor: pointer; font-size: 13px; font-weight: 600; color: #c0c0d0; user-select: none; }
+.collapsible-header:hover { color: #f4f4f6; }
+.collapsible-header .arrow { font-size: 10px; }
+
+/* ── HiDPI ── */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  body { -webkit-font-smoothing: antialiased; }
 }

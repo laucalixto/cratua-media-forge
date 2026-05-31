@@ -29,6 +29,9 @@ pub enum MediaForgeError {
 
     #[error("Encoding cancelled by user")]
     Cancelled,
+
+    #[error("ffmpeg timed out after {0}s without output")]
+    FfmpegTimeout(u64),
 }
 
 #[cfg(test)]
@@ -40,5 +43,12 @@ mod tests {
     #[test]
     fn ffmpeg_process_display() { assert!(format!("{}", MediaForgeError::FfmpegProcess("boom".into())).contains("boom")); }
     #[test]
-    fn no_input_files_display() { assert!(format!("{}", MediaForgeError::NoInputFiles).contains("No input files")); }
+    fn no_input_files_display() {
+        assert!(format!("{}", MediaForgeError::NoInputFiles).contains("No input files"));
+    }
+
+    #[test]
+    fn timeout_display() {
+        assert!(format!("{}", MediaForgeError::FfmpegTimeout(30)).contains("30"));
+    }
 }
