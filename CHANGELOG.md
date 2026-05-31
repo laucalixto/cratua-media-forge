@@ -6,6 +6,7 @@
 - Progress bar: CSS class mismatch (`progress-fill` → `progress-bar-fill`)
 - Progress bar: added `.progress-pct` CSS class for percentage text
 - Light mode: progress bar background override
+- Sponsor button: use `@tauri-apps/plugin-shell` `open()` instead of blocked `window.open()`
 
 ### Added
 - Encoding timeout (30s) — ffmpeg hang detection
