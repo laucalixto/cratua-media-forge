@@ -29,9 +29,9 @@ presets inteligentes e barra de progresso em tempo real.
 
 | Plataforma | Download |
 |-----------|----------|
-| Linux (x86_64) | [cratua-media-forge-v0.4.0-linux-x86_64.tar.gz](https://github.com/laucalixto/mediaforge/releases/latest) |
-| Windows (x86_64) | [cratua-media-forge-v0.4.0-windows-x86_64.zip](https://github.com/laucalixto/mediaforge/releases/latest) |
-| Debian/Ubuntu | [.deb package](https://github.com/laucalixto/mediaforge/releases/latest) |
+| Linux (x86_64) | [cratua-media-forge-v0.4.0-linux-x86_64.tar.gz](https://github.com/laucalixto/cratua-media-forge/releases/latest) |
+| Windows (x86_64) | [cratua-media-forge-v0.4.0-windows-x86_64.zip](https://github.com/laucalixto/cratua-media-forge/releases/latest) |
+| Debian/Ubuntu | [.deb package](https://github.com/laucalixto/cratua-media-forge/releases/latest) |
 
 ffmpeg incluso — **nada para instalar**.
 
