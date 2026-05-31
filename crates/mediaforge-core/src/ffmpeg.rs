@@ -437,49 +437,79 @@ where
         .take()
         .ok_or_else(|| MediaForgeError::FfmpegProcess("cannot capture stderr".into()))?;
 
+    // Spawn a thread to read stderr lines and send them through a channel.
+    // The main thread uses recv_timeout to detect ffmpeg hangs (30s without output).
+    let (line_tx, line_rx) = std::sync::mpsc::channel::<String>();
     let reader = std::io::BufReader::new(stderr);
-    let mut stderr_lines: Vec<String> = Vec::new();
-
-    for line in reader.lines() {
-        // Check cancellation
-        if let Some(ref flag) = cancel_flag {
-            if flag.load(Ordering::Relaxed) {
-                let _ = child.kill();
-                let _ = child.wait();
-                return Err(MediaForgeError::Cancelled);
+    let reader_handle = std::thread::spawn(move || {
+        for line in reader.lines() {
+            let line = line.unwrap_or_default();
+            if line_tx.send(line).is_err() {
+                break; // receiver dropped — main thread is done
             }
         }
+    });
 
-        let line = line.unwrap_or_default();
-        let line_clone = line.clone();
-        stderr_lines.push(line_clone);
+    let mut stderr_lines: Vec<String> = Vec::new();
+    const TIMEOUT_SECS: u64 = 30;
 
-        if let Some((key, value)) = parse_progress_line(&line) {
-            let mut info = ProgressInfo::default();
-            let mut should_emit = true;
-            match key.as_str() {
-                "out_time_us" => {
-                    info.out_time_us = value.parse().unwrap_or(0);
-                    if let Some(total) = total_duration_us {
-                        if total > 0 {
-                            info.progress_pct = (info.out_time_us as f64 / total as f64 * 100.0).min(99.9);
+    loop {
+        match line_rx.recv_timeout(std::time::Duration::from_secs(TIMEOUT_SECS)) {
+            Ok(line) => {
+                // Check cancellation
+                if let Some(ref flag) = cancel_flag {
+                    if flag.load(Ordering::Relaxed) {
+                        let _ = child.kill();
+                        let _ = child.wait();
+                        drop(line_rx);
+                        let _ = reader_handle.join();
+                        return Err(MediaForgeError::Cancelled);
+                    }
+                }
+
+                let line_clone = line.clone();
+                stderr_lines.push(line_clone);
+
+                if let Some((key, value)) = parse_progress_line(&line) {
+                    let mut info = ProgressInfo::default();
+                    let mut should_emit = true;
+                    match key.as_str() {
+                        "out_time_us" => {
+                            info.out_time_us = value.parse().unwrap_or(0);
+                            if let Some(total) = total_duration_us {
+                                if total > 0 {
+                                    info.progress_pct = (info.out_time_us as f64 / total as f64 * 100.0).min(99.9);
+                                }
+                            }
                         }
+                        "progress" => {
+                            if value == "end" {
+                                info.progress_pct = 100.0;
+                            } else {
+                                should_emit = false; // progress=continue — don't emit
+                            }
+                        }
+                        // Only emit for out_time_us and progress=end — all other keys
+                        // (speed, fps, frame, bitrate, total_size) carry progress_pct=0.0
+                        // which would overwrite the real value in the frontend.
+                        _ => should_emit = false,
+                    }
+                    if should_emit {
+                        on_progress(&info);
                     }
                 }
-                "progress" => {
-                    if value == "end" {
-                        info.progress_pct = 100.0;
-                    } else {
-                        should_emit = false; // progress=continue — don't emit
-                    }
-                }
-                // Only emit for out_time_us and progress=end — all other keys
-                // (speed, fps, frame, bitrate, total_size) carry progress_pct=0.0
-                // which would overwrite the real value in the frontend.
-                _ => should_emit = false,
             }
-            if should_emit {
-                on_progress(&info);
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                // 30 seconds without a line → ffmpeg is likely hung
+                let _ = child.kill();
+                let _ = child.wait();
+                drop(line_rx);
+                let _ = reader_handle.join();
+                return Err(MediaForgeError::FfmpegTimeout(TIMEOUT_SECS));
+            }
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                // Reader thread finished (stderr closed normally)
+                break;
             }
         }
     }

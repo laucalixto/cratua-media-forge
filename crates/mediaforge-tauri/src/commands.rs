@@ -15,6 +15,9 @@ static CANCEL_FLAG: std::sync::OnceLock<Mutex<Option<Arc<AtomicBool>>>> = std::s
 // ── History file lock ──
 static HISTORY_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
+// ── Custom presets file lock ──
+static PRESET_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 // ── Lightweight job data for IPC ──
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -72,6 +75,7 @@ fn custom_presets_path() -> PathBuf {
 }
 
 fn load_custom_presets() -> Vec<Preset> {
+    let _lock = PRESET_LOCK.lock().unwrap();
     let path = custom_presets_path();
     if path.exists() {
         std::fs::read_to_string(&path)
@@ -84,6 +88,7 @@ fn load_custom_presets() -> Vec<Preset> {
 }
 
 fn save_custom_presets(presets: &[Preset]) {
+    let _lock = PRESET_LOCK.lock().unwrap();
     let path = custom_presets_path();
     if let Some(parent) = path.parent() {
         let _ = std::fs::create_dir_all(parent);
@@ -113,6 +118,11 @@ pub fn get_presets() -> Vec<Preset> {
     let custom = load_custom_presets();
     presets.extend(custom);
     presets
+}
+
+#[tauri::command]
+pub fn get_builtin_preset_ids() -> Vec<String> {
+    preset::builtin_presets().iter().map(|p| p.id.clone()).collect()
 }
 
 #[tauri::command]

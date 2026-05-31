@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/*"]
+members = ["crates/mediaforge-core", "crates/mediaforge-tauri"]
 resolver = "2"
 
 [workspace.package]
