@@ -1,9 +1,9 @@
 # Cratua Media Forge — Documentação Técnica Completa
 
-> Curso de pós-graduação: do `Cargo.toml` ao binário cross-compilado.
+> Tutotial: do `Cargo.toml` ao binário cross-compilado.
 > Cada linha de código explicada, cada decisão de design justificada.
 
-**Versão:** 0.4.1 | **Autor:** laucalixto | **Licença:** MIT
+**Versão:** 0.4.2 | **Autor:** laucalixto | **Licença:** MIT
 
 ---
 

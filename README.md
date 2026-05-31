@@ -93,7 +93,7 @@ bash scripts/check.sh
 cd crates/mediaforge-tauri && npm run dev && cargo tauri dev
 
 # Release
-bash scripts/release.sh #"(VERSION)"  #(0.4.1)
+bash scripts/release.sh #"(VERSION)"  #(0.4.2)
 ```
 
 ---
