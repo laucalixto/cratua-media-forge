@@ -33,3 +33,6 @@ certs/
 
 #Nodejs
 node_modules/
+
+#Agent
+.hermes/
