@@ -240,6 +240,7 @@ on($('#btn-settings'),'click',()=>{if(S.config){$('#ffmpeg-path').value=S.config
 on($('#btn-settings-browse'),'click',browseOutputDir);
 on($('#btn-theme'),'click',()=>{const hl=document.documentElement;hl.classList.toggle('light');const isLight=hl.classList.contains('light');const tb=$('#btn-theme');if(tb)tb.textContent=isLight?'☾':'☀';if(S.config){S.config.theme=isLight?'Light':'Dark';invoke('save_config',{config:S.config}).catch(()=>{})}});
 on($('#btn-about'),'click',()=>$('#about-modal').classList.remove('hidden'));on($('#btn-about-close'),'click',()=>$('#about-modal').classList.add('hidden'));
+on($('#btn-donate'),'click',()=>{window.open('https://github.com/sponsors/laucalixto','_blank')});
 
 // ── History ──
 async function loadHistory(){try{S.history=await invoke('get_history');renderHistory()}catch(e){}}

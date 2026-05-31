@@ -649,6 +649,13 @@
     --tw-outline-style: none;
     outline-style: none;
   }
+  .hover\:border-\[\#f59e0b\] {
+    &:hover {
+      @media (hover: hover) {
+        border-color: #f59e0b;
+      }
+    }
+  }
   .hover\:border-rose {
     &:hover {
       @media (hover: hover) {
@@ -702,6 +709,13 @@
     &:hover {
       @media (hover: hover) {
         color: #ef4444;
+      }
+    }
+  }
+  .hover\:text-\[\#f59e0b\] {
+    &:hover {
+      @media (hover: hover) {
+        color: #f59e0b;
       }
     }
   }
