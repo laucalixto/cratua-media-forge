@@ -1833,7 +1833,7 @@ dependencies = [
 
 [[package]]
 name = "mediaforge-core"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "chrono",
  "fluent",
@@ -1850,7 +1850,7 @@ dependencies = [
 
 [[package]]
 name = "mediaforge-tauri"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "mediaforge-core",
  "serde",
