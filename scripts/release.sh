@@ -109,6 +109,7 @@ if [ -f "$BIN_LINUX" ]; then
   mkdir -p "$ROOT/dist/cratua-media-forge-linux/ffmpeg"
   cp "$BIN_LINUX" "$ROOT/dist/cratua-media-forge-linux/cratua-media-forge"
   cp "$ROOT/vendor/ffmpeg/ffmpeg" "$ROOT/dist/cratua-media-forge-linux/ffmpeg/"
+  cp "$ROOT/LICENSE" "$ROOT/dist/cratua-media-forge-linux/"
   cat > "$ROOT/dist/cratua-media-forge-linux/README.txt" << 'EOF'
 Cratua Media Forge — Portable Media Converter
 ===============================================
@@ -151,6 +152,7 @@ else
     mkdir -p "$ROOT/dist/cratua-media-forge-windows/ffmpeg"
     cp "$BIN_WIN" "$ROOT/dist/cratua-media-forge-windows/cratua-media-forge.exe"
     cp "$ROOT/vendor/ffmpeg/ffmpeg.exe" "$ROOT/dist/cratua-media-forge-windows/ffmpeg/"
+    cp "$ROOT/LICENSE" "$ROOT/dist/cratua-media-forge-windows/"
     # ffprobe.exe needed for progress tracking
     [ -f "$ROOT/vendor/ffmpeg/ffprobe.exe" ] && cp "$ROOT/vendor/ffmpeg/ffprobe.exe" "$ROOT/dist/cratua-media-forge-windows/ffmpeg/"
 
